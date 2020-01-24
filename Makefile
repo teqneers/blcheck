@@ -18,7 +18,7 @@ dep: ## Get the dependencies
 	@go get -u golang.org/x/lint/golint
 
 build: dep ## Build the binary file
-	@go build -i -v -o blkchecker $(PKG)
+	@go build -i -v -o blchecker $(PKG)
 
 clean: ## Remove previous build
 	@rm -f $(PROJECT_NAME)
