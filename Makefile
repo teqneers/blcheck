@@ -17,8 +17,15 @@ dep: ## Get the dependencies
 	@go get -v -d ./...
 	@go get -u golang.org/x/lint/golint
 
-build: dep ## Build the binary file
-	@go build -a -ldflags '-extldflags "-static"' -o blchecker $(PKG) && upx ./blchecker
+build_macos: dep ## Build the binary file
+	export GOOS=darwin 
+	export GOARCH=amd64
+	@go build -a -ldflags '-extldflags "-static"' -o blchecker_macos $(PKG) && upx ./blchecker_macos
+
+build_linux: dep ## Build the binary file
+	export GOOS=linux 
+	export GOARCH=amd64
+	@go build -a -ldflags '-extldflags "-static"' -o blchecker_linux $(PKG) && upx ./blchecker_linux
 
 clean: ## Remove previous build
 	@rm -f $(PROJECT_NAME)
