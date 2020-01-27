@@ -16,7 +16,7 @@ import (
 
 	"github.com/cheynewallace/tabby"
 	"github.com/gookit/color"
-	"github.com/gosuri/uiprogress"
+	pb "github.com/schollz/progressbar/v2"
 	"github.com/spf13/cobra"
 	"github.com/swallo/blcheck/iputil"
 )
@@ -77,7 +77,7 @@ var checkCmd = &cobra.Command{
 	},
 	Long: `Run blchecker against a list of blacklist providers via the dns lookup tool`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Checking IP:", checkIP)
+		fmt.Println("Checking IP:", color.Bold.Render(checkIP))
 
 		start := time.Now()
 
@@ -89,7 +89,8 @@ var checkCmd = &cobra.Command{
 		defer file.Close()
 
 		buildProviderList(file)
-		fmt.Println("Checking", len(blProviderList), "providers")
+		fmt.Println("Checking", color.Bold.Render(len(blProviderList)), "providers")
+		fmt.Println("")
 
 		bar := buildProgressBar(len(blProviderList))
 
@@ -108,29 +109,25 @@ var checkCmd = &cobra.Command{
 	},
 }
 
-func buildProgressBar(total int) *uiprogress.Bar {
-	uiprogress.Start()
-	bar := uiprogress.AddBar(len(blProviderList))
-	bar.AppendCompleted()
-	bar.PrependElapsed()
+func buildProgressBar(total int) *pb.ProgressBar {
+	bar := pb.New(total)
 
 	return bar
 }
 
-func dnsLookup(lookupDomain string, blChecker string, waitGroup *sync.WaitGroup, bar *uiprogress.Bar) {
-	watchChan := make(chan bool, 1)
+func dnsLookup(lookupDomain string, blChecker string, waitGroup *sync.WaitGroup, bar *pb.ProgressBar) {
+	resultChan := make(chan bool, 1)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(dnsTimeout+1)*time.Second)
 
 	defer cancel()
-	defer bar.Incr()
 	defer waitGroup.Done()
 
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, lookupDomain)
-	watchChan <- true
+	resultChan <- true
 
 	select {
-	case <-watchChan:
+	case <-resultChan:
 		if err != nil {
 			atomic.AddUint64(&notListedCount, 1)
 		} else {
@@ -146,12 +143,13 @@ func dnsLookup(lookupDomain string, blChecker string, waitGroup *sync.WaitGroup,
 	case <-ctx.Done():
 		atomic.AddUint64(&timeOutCount, 1)
 	}
+
+	bar.Add(1)
 }
 
 func printResults(elapsed time.Duration) {
 	fmt.Println("")
 	fmt.Println("")
-	fmt.Println("########## RESULT ##########")
 
 	fmt.Println("took", elapsed.Seconds(), "seconds", "for", len(blProviderList), "providers")
 	fmt.Println(color.Success.Render(notListedCount), "times not listed")
@@ -161,7 +159,7 @@ func printResults(elapsed time.Duration) {
 	if len(listedBlacklists) > 0 {
 		fmt.Println("")
 		fmt.Println("")
-		fmt.Println("########## LISTED ##########")
+		fmt.Println(color.Warn.Render("########## LISTED ##########"))
 
 		t := tabby.New()
 		t.AddHeader("NAME", "STATUS", "TXT")
