@@ -1,3 +1,6 @@
+GO_BIN := which go
+GO_LINT := which golint
+UPX := which upx
 PROJECT_NAME := "blcheck"
 PKG := "github.com/swallo/$(PROJECT_NAME)"
 PKG_LIST := $(shell go list ${PKG}/...)
@@ -8,20 +11,26 @@ GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 all: build
 
 lint: ## Lint the files
-	@golint -set_exit_status ${PKG_LIST}
+	${GO_LINT} -set_exit_status ${PKG_LIST}
 
 test: ## Run unittests
-	@go test -short ${PKG_LIST}
+	${GO_BIN} test -short ${PKG_LIST}
 
 dep: ## Get the dependencies
-	@go get -v -d ./...
-	@go get -u golang.org/x/lint/golint
+	${GO_BIN} get -v -d ./...
+	${GO_BIN} get -u golang.org/x/lint/golint
 
-build_macos: dep ## Build the binary file
-	GOOS=darwin GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o blchecker_macos $(PKG) && upx ./blchecker_macos
+buildmacos: dep ## Build the binary file
+	GOOS=darwin GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.macos $(PKG)
 
-build_linux: dep ## Build the binary file
-	GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o blchecker_linux $(PKG) && upx ./blchecker_linux
+buildlinux: dep ## Build the binary file
+	GOOS=linux GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.linux $(PKG)
+
+compressmacos: dep ## Build the binary file
+	${UPX} ./blchecker.macos
+
+compresslinux: dep ## Build the binary file
+	${UPX} ./blchecker.linux
 
 clean: ## Remove previous build
 	@rm -f $(PROJECT_NAME)
