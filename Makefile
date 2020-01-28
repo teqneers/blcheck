@@ -1,6 +1,6 @@
-GO_BIN := which go
-GO_LINT := which golint
-UPX := which upx
+GO_BIN := go
+GO_LINT := golint
+UPX := upx
 PROJECT_NAME := "blcheck"
 PKG := "github.com/swallo/$(PROJECT_NAME)"
 PKG_LIST := $(shell go list ${PKG}/...)
