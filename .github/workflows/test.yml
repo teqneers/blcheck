@@ -19,6 +19,5 @@ jobs:
       run: make dep
     - name: Test
       run: make test
-      run: make lint
     - name: Test race
       run: make race
