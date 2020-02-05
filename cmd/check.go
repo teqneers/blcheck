@@ -141,9 +141,8 @@ func runCommand(cmd *cobra.Command, args []string) {
 	if isQuiet == false {
 		printResults(time.Now().Sub(start), checkProviderList)
 	}
-	if listedCount > 0 {
-		os.Exit(1)
-	}
+
+	os.Exit(listedCount)
 }
 
 func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, waitGroup *sync.WaitGroup) {
