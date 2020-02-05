@@ -142,7 +142,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 		printResults(time.Now().Sub(start), checkProviderList)
 	}
 
-	os.Exit(listedCount)
+	os.Exit(int(listedCount))
 }
 
 func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, waitGroup *sync.WaitGroup) {
