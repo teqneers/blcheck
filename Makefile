@@ -1,6 +1,6 @@
-GO_BIN := go
-GO_LINT := golint
-UPX := upx
+GO_BIN := $(shell which go)
+GO_LINT := $(shell which golint)
+UPX := $(shell which upx)
 PROJECT_NAME := "blcheck"
 PKG := "github.com/teqneers/$(PROJECT_NAME)"
 PKG_LIST := $(shell go list ${PKG}/...)
