@@ -6,7 +6,7 @@ PKG := "github.com/teqneers/$(PROJECT_NAME)"
 PKG_LIST := $(shell go list ${PKG}/...)
 GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 
-.PHONY: all dep build clean test lint buildmacos buildlinux compressmacos compresslinux release
+.PHONY: all dep build clean test race lint buildmacos buildlinux compressmacos compresslinux release
 
 all: release
 
@@ -15,6 +15,9 @@ lint: ## Lint the files
 
 test: ## Run unittests
 	${GO_BIN} test -short ${PKG_LIST}
+
+race: ## Run race tests
+	${GO_BIN} test -race -short ${PKG_LIST}
 
 dep: ## Get the dependencies
 	${GO_BIN} get -v -d ./...
@@ -34,7 +37,7 @@ compresslinux: ## Build the binary file
 	${UPX} ./blchecker.linux
 	${UPX} -t ./blchecker.linux
 
-release: clean dep lint test buildmacos compressmacos buildlinux compresslinux
+release: clean dep lint test race buildmacos compressmacos buildlinux compresslinux
 
 clean: ## Remove previous build
 	@rm -f ./blchecker.macos
