@@ -37,11 +37,11 @@ compresslinux: ## Build the binary file
 	${UPX} ./blchecker.linux
 	${UPX} -t ./blchecker.linux
 
-release: clean dep lint test race buildmacos compressmacos buildlinux compresslinux
-
 clean: ## Remove previous build
 	@rm -f ./blchecker.macos
 	@rm -f ./blchecker.linux
+
+release: clean dep test race buildmacos compressmacos buildlinux compresslinux
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
