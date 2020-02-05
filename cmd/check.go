@@ -14,10 +14,11 @@ import (
 
 	"github.com/cheynewallace/tabby"
 	"github.com/gookit/color"
-	pb "github.com/schollz/progressbar/v2"
 	"github.com/spf13/cobra"
+	"github.com/teqneers/blcheck/dnsutil"
 	"github.com/teqneers/blcheck/iputil"
 	l "github.com/teqneers/blcheck/logutil"
+	"github.com/teqneers/blcheck/progressbar"
 	"github.com/teqneers/blcheck/provider"
 )
 
@@ -53,9 +54,9 @@ var (
 func init() {
 	rootCmd.AddCommand(checkCmd)
 	checkCmd.Flags().StringVar(&filePath, "checklist", "./bl_list", "custom checklist file path")
-	checkCmd.Flags().IntVar(&dnsTimeout, "timeout", 3, "defines the timeout for the dns request")
+	checkCmd.Flags().IntVar(&dnsTimeout, "timeout", 20, "defines the timeout for the dns request")
 	checkCmd.Flags().IntVar(&dnsRetries, "retries", 2, "defines the amount of retries if request was unsuccessful")
-	checkCmd.Flags().IntVar(&dnsThrottle, "throttle", 20, "defines the amount of dns requests per second")
+	checkCmd.Flags().IntVar(&dnsThrottle, "throttle", 25, "defines the amount of dns requests per second")
 }
 
 var checkCmd = &cobra.Command{
@@ -77,69 +78,75 @@ var checkCmd = &cobra.Command{
 		return nil
 	},
 	Long: `Run blchecker against a list of blacklist providers via the dns lookup tool`,
-	Run: func(cmd *cobra.Command, args []string) {
-		start := time.Now()
-
-		var checkElement checkElement
-		var checkIP string
-
-		isQuiet, _ := cmd.Flags().GetBool("quiet")
-		l.CurrentLogLevel, _ = cmd.Flags().GetCount("verbose")
-		l.IsQuiet = isQuiet
-
-		if iputil.IsIP(toCheckHostOrIP) {
-			checkElement.IP = checkIP
-			checkElement.host = ""
-
-			l.LogInfo(0, fmt.Sprintf("Checking: %s", toCheckHostOrIP))
-		} else {
-			checkElement.IP = getIPFromHostname(toCheckHostOrIP)
-			checkElement.host = toCheckHostOrIP
-
-			l.LogInfo(0, fmt.Sprintf("Checking IP %s (from Host: %s)", checkElement.IP, checkElement.host))
-		}
-
-		file, err := os.Open(filePath)
-		if err != nil {
-			log.Fatal(err)
-			os.Exit(144)
-		}
-
-		checkProviderList := provider.BuildProviderList(file)
-		file.Close()
-
-		l.LogInfo(0, fmt.Sprint("Checking ", color.Bold.Render(len(checkProviderList)), " providers"))
-
-		bar := buildProgressBar(len(checkProviderList))
-
-		var waitGroup sync.WaitGroup
-
-		rate := time.Second / time.Duration(dnsThrottle)
-		throttle := time.Tick(rate)
-
-		for _, blChecker := range checkProviderList {
-			<-throttle
-			waitGroup.Add(1)
-			go dnsLookup(checkElement, blChecker, &waitGroup, bar)
-		}
-		waitGroup.Wait()
-
-		if isQuiet == false {
-			printResults(time.Now().Sub(start), checkProviderList)
-		}
-		if listedCount > 0 {
-			os.Exit(1)
-		}
-	},
+	Run:  runCommand,
 }
 
-func buildProgressBar(total int) *pb.ProgressBar {
-	bar := pb.New(total)
+func runCommand(cmd *cobra.Command, args []string) {
+	start := time.Now()
 
-	return bar
+	var checkElement checkElement
+	var checkIP string
+
+	isQuiet, _ := cmd.Flags().GetBool("quiet")
+	verboseLevel, _ := cmd.Flags().GetCount("verbose")
+	l.CurrentLogLevel = verboseLevel
+	l.IsQuiet = isQuiet
+
+	if iputil.IsIP(toCheckHostOrIP) {
+		checkElement.IP = checkIP
+		checkElement.host = ""
+
+		l.LogInfo(0, fmt.Sprintf("Checking: %s", toCheckHostOrIP))
+	} else {
+		checkElement.IP = dnsutil.LookupIPFromHostname(toCheckHostOrIP, dnsTimeout)
+		checkElement.host = toCheckHostOrIP
+
+		ptrRecord := dnsutil.LookupPtrRecordForIP(checkElement.IP, dnsTimeout)
+
+		l.LogInfo(1, fmt.Sprintf("Found PTR Record for IP %s: %s", checkElement.IP, ptrRecord))
+
+		if ptrRecord != fmt.Sprintf("%s.", checkElement.host) {
+			l.LogError(0, fmt.Sprintf("PTR Record does not match host: %s != %s", ptrRecord, checkElement.host))
+		}
+		l.LogInfo(0, fmt.Sprintf("PTR Records do match (%s)", ptrRecord))
+
+		l.LogInfo(0, fmt.Sprintf("Checking IP %s (from Host: %s)", checkElement.IP, checkElement.host))
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(144)
+	}
+
+	checkProviderList := provider.BuildProviderList(file)
+	file.Close()
+
+	l.LogInfo(0, fmt.Sprint("Checking ", color.Bold.Render(len(checkProviderList)), " providers"))
+
+	progressbar.CreateProgressbar(len(checkProviderList), (isQuiet || verboseLevel > 0))
+
+	var waitGroup sync.WaitGroup
+
+	rate := time.Second / time.Duration(dnsThrottle)
+	throttle := time.Tick(rate)
+
+	for _, blChecker := range checkProviderList {
+		<-throttle
+		waitGroup.Add(1)
+		go dnsLookup(checkElement, blChecker, &waitGroup)
+	}
+	waitGroup.Wait()
+
+	if isQuiet == false {
+		printResults(time.Now().Sub(start), checkProviderList)
+	}
+	if listedCount > 0 {
+		os.Exit(1)
+	}
 }
 
-func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, waitGroup *sync.WaitGroup, bar *pb.ProgressBar) {
+func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, waitGroup *sync.WaitGroup) {
 	var lookupDomain string
 
 	resultChan := make(chan bool, 1)
@@ -148,17 +155,18 @@ func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, wait
 
 	defer cancel()
 	defer waitGroup.Done()
-	defer bar.Add(1)
+	defer progressbar.AddToBar(1)
 
 	if !blChecker.Active {
 		atomic.AddUint64(&disabledCount, 1)
+		l.LogWarning(1, fmt.Sprintf("Provider %s is deactivated", blChecker.URL))
 	} else {
 		if blChecker.BlType == provider.ProviderTypeURIBlacklist {
 			if checkElement.host != "" {
 				lookupDomain = fmt.Sprintf("%s.%s", checkElement.host, blChecker.URL)
 			} else {
 				atomic.AddUint64(&skippedCount, 1)
-				l.LogInfo(1, fmt.Sprintf("The host %s is a URI based blacklist, but no host provided.", blChecker.URL))
+				l.LogInfo(1, fmt.Sprintf("Notice: URIBL entry '%s' will be ignore, because %s is an IP address.", blChecker.URL, checkElement.IP))
 				return
 			}
 		} else {
@@ -172,13 +180,17 @@ func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, wait
 		case <-resultChan:
 			if err != nil {
 				atomic.AddUint64(&notListedCount, 1)
+				l.LogSuccess(1, fmt.Sprintf("Checked %s ✓", blChecker.URL))
 			} else {
 				resultIP := ips[0].String()
 
 				if blChecker.Filter.Match([]byte(resultIP)) {
 					atomic.AddUint64(&notListedCount, 1)
+					l.LogSuccess(1, fmt.Sprintf("Checked %s (matched provided filter %s) ✓", blChecker.URL, blChecker.Filter.String()))
 				} else {
 					atomic.AddUint64(&listedCount, 1)
+					l.LogError(1, fmt.Sprintf("Checked %s ✓", blChecker.URL))
+
 					listedBlacklist := listedBlacklist{name: blChecker.URL, status: resultIP}
 
 					txt, txtErr := net.DefaultResolver.LookupTXT(ctx, lookupDomain)
@@ -186,43 +198,14 @@ func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, wait
 						listedBlacklist.txt = strings.Join(txt, " ")
 					}
 					listedBlacklists = append(listedBlacklists, listedBlacklist)
+					l.LogError(1, fmt.Sprintf("Checked %s - TXT: %s", blChecker.URL, listedBlacklist.txt))
 				}
 			}
 		case <-ctx.Done():
 			atomic.AddUint64(&timeOutCount, 1)
+			l.LogInfo(1, fmt.Sprintf("Checked %s, but timed out !", blChecker.URL))
 		}
 	}
-}
-
-func getIPFromHostname(lookupDomain string) string {
-	var resultIP string
-
-	resultChan := make(chan bool, 1)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(dnsTimeout+1)*time.Second)
-
-	defer cancel()
-
-	ips, _ := net.DefaultResolver.LookupIPAddr(ctx, lookupDomain)
-	resultChan <- true
-
-	select {
-	case <-resultChan:
-		if len(ips) == 1 {
-			resultIP = ips[0].IP.String()
-		} else if len(ips) > 1 {
-			l.LogError(0, fmt.Sprintf("The reverse lookup for the host %s returned multiple IPs.", lookupDomain))
-			os.Exit(155)
-		} else {
-			l.LogError(0, fmt.Sprintf("The reverse lookup for the host %s failed.", lookupDomain))
-			os.Exit(155)
-		}
-
-	case <-ctx.Done():
-		l.LogError(0, fmt.Sprintf("The reverse lookup for the host %s timed out after %d seconds.", lookupDomain, time.Duration(dnsTimeout+1)*time.Second))
-		os.Exit(155)
-	}
-
-	return resultIP
 }
 
 func printResults(elapsed time.Duration, checkProviderList []provider.CheckProvider) {

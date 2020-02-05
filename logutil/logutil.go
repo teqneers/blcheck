@@ -37,6 +37,11 @@ func LogError(logLevel int, logString string) {
 	doLog(logLevel, logString, color.Error.Render)
 }
 
+// LogSuccess provides the possibility to render
+func LogSuccess(logLevel int, logString string) {
+	doLog(logLevel, logString, color.Success.Render)
+}
+
 // LogInfo provides the possibility to render
 func LogInfo(logLevel int, logString string) {
 	doLog(logLevel, logString, color.Info.Render)
