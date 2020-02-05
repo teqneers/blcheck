@@ -34,9 +34,9 @@ jobs:
     - name: Install Linux packages
       run: sudo apt update && sudo apt install -y upx-ucl
     - name: Build binary
-      run: make buildmacos
+      run: make buildlinux
     - name: Compress binary
-      run: make compressmacos
+      run: make compresslinux
     - name: Upload linux build
       uses: actions/upload-artifact@v1
       with:
@@ -60,9 +60,9 @@ jobs:
     - name: Install UPX
       run: brew update && brew install upx
     - name: Build binary
-      run: make buildlinux
+      run: make buildmacos
     - name: Compress binary
-      run: make compresslinux
+      run: make compressmacos
     - name: Upload macos build
       uses: actions/upload-artifact@v1
       with:
