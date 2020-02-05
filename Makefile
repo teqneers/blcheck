@@ -27,11 +27,11 @@ buildlinux: dep ## Build the binary file
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.linux $(PKG)
 
 compressmacos: ## Build the binary file
-	${UPX} --best ./blchecker.macos
+	${UPX} ./blchecker.macos
 	${UPX} -t ./blchecker.macos
 
 compresslinux: ## Build the binary file
-	${UPX} --best ./blchecker.linux
+	${UPX} ./blchecker.linux
 	${UPX} -t ./blchecker.linux
 
 release: clean dep lint test buildmacos compressmacos buildlinux compresslinux
