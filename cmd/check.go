@@ -108,7 +108,7 @@ var checkCmd = &cobra.Command{
 		checkProviderList := provider.BuildProviderList(file)
 		file.Close()
 
-		l.LogInfo(1, fmt.Sprint("Checking ", color.Bold.Render(len(checkProviderList)), " providers"))
+		l.LogInfo(0, fmt.Sprint("Checking ", color.Bold.Render(len(checkProviderList)), " providers"))
 
 		bar := buildProgressBar(len(checkProviderList))
 
@@ -153,16 +153,14 @@ func dnsLookup(checkElement checkElement, blChecker provider.CheckProvider, wait
 	if !blChecker.Active {
 		atomic.AddUint64(&disabledCount, 1)
 	} else {
-
 		if blChecker.BlType == provider.ProviderTypeURIBlacklist {
 			if checkElement.host != "" {
-				lookupDomain = fmt.Sprintf("%s.%s", iputil.Reverse(checkElement.host), blChecker.URL)
+				lookupDomain = fmt.Sprintf("%s.%s", checkElement.host, blChecker.URL)
 			} else {
 				atomic.AddUint64(&skippedCount, 1)
 				l.LogInfo(1, fmt.Sprintf("The host %s is a URI based blacklist, but no host provided.", blChecker.URL))
 				return
 			}
-
 		} else {
 			lookupDomain = fmt.Sprintf("%s.%s", iputil.Reverse(checkElement.IP), blChecker.URL)
 		}
