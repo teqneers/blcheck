@@ -2,11 +2,11 @@ GO_BIN := go
 GO_LINT := golint
 UPX := upx
 PROJECT_NAME := "blcheck"
-PKG := "github.com/swallo/$(PROJECT_NAME)"
+PKG := "github.com/teqneers/$(PROJECT_NAME)"
 PKG_LIST := $(shell go list ${PKG}/...)
 GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 
-.PHONY: all dep build clean test lint
+.PHONY: all dep build clean test lint buildmacos buildlinux compressmacos compresslinux release
 
 all: build
 
@@ -21,16 +21,27 @@ dep: ## Get the dependencies
 	${GO_BIN} get -u golang.org/x/lint/golint
 
 buildmacos: dep ## Build the binary file
-	GOOS=darwin GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.macos $(PKG)
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.macos $(PKG)
 
 buildlinux: dep ## Build the binary file
-	GOOS=linux GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.linux $(PKG)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.linux $(PKG)
 
 compressmacos: dep ## Build the binary file
-	${UPX} ./blchecker.macos
+	${UPX} --best ./blchecker.macos
+	${UPX} -t ./blchecker.macos
 
 compresslinux: dep ## Build the binary file
-	${UPX} ./blchecker.linux
+	${UPX} --best ./blchecker.linux
+	${UPX} -t ./blchecker.linux
+
+release: dep ## Build all binary files and compress
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.macos $(PKG)
+	${UPX} --best ./blchecker.macos
+	${UPX} -t ./blchecker.macos
+
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 ${GO_BIN} build -a -ldflags '-extldflags "-static"' -o blchecker.linux $(PKG)
+	${UPX} --best ./blchecker.linux
+	${UPX} -t ./blchecker.linux
 
 clean: ## Remove previous build
 	@rm -f $(PROJECT_NAME)

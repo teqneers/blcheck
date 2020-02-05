@@ -15,7 +15,7 @@ func TestReverseIP(t *testing.T) {
 
 func TestValidateIP(t *testing.T) {
 	testIP := "1.2.3.4"
-	isValid := Validate(testIP)
+	isValid := ValidateIP(testIP)
 
 	if isValid == false {
 		t.Errorf("Validating IP failed, IP is invalid but should be valid")
@@ -24,7 +24,7 @@ func TestValidateIP(t *testing.T) {
 
 func TestValidateIPButInvalid(t *testing.T) {
 	testIP := "300.2.3.4"
-	isValid := Validate(testIP)
+	isValid := ValidateIP(testIP)
 
 	if isValid == true {
 		t.Errorf("Validating IP failed, IP is valid but should be invalid")
@@ -33,7 +33,7 @@ func TestValidateIPButInvalid(t *testing.T) {
 
 func TestValidateIPButTooLong(t *testing.T) {
 	testIP := "1.2.3.4.5"
-	isValid := Validate(testIP)
+	isValid := ValidateIP(testIP)
 
 	if isValid == true {
 		t.Errorf("Validating IP failed, IP is valid but should be invalid")

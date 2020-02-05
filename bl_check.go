@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/swallo/blcheck/cmd"
+	"github.com/teqneers/blcheck/cmd"
 )
 
 func main() {

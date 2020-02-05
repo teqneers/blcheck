@@ -2,12 +2,10 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
-	// Used for flags.
-	verbose bool
-
 	rootCmd = &cobra.Command{
 		Use:   "blkchecker",
 		Short: "blkchecker is a very fast mailbox blacklist checker",
@@ -21,5 +19,9 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().CountP("quiet", "q", "quiet option to disable all output, overwrites verbose if set")
+	viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet"))
+
+	rootCmd.PersistentFlags().CountP("verbose", "v", "verbose output, supports levels: -v, -vv, -vvv")
+	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 }

@@ -1,4 +1,20 @@
-whitelist.rbl.ispa.at
+# Blacklists to check
+# Example formats:
+# - General format
+#   {ip_or_domain}={filter}#{type}
+# - IP based blacklist (default DNSBL, any valid return code will match)
+#   black.list.com
+# - IP based blacklist
+#   black.list.com#DNSBL
+# - IP based whitelist
+#   white.list.com#DNSWL
+# - URI based blacklist
+#   uri.list.com#URIBL
+# - Regexp defined return code, only a match will qualify for list. Here it is 127.0.0.2 and 127.0.0.3
+#   black.list.com=127\.0\.0\.[23]
+# - Regexp defined return code for a URI based blacklist
+#   black.list.com=127\.0\.[0-9]+\.0#URIBL
+whitelist.rbl.ispa.at#DNSWL
 t3direct.dnsbl.net.au
 ucepn.dnsbl.net.au
 wpbl.dnsbl.net.au
@@ -9,7 +25,7 @@ proxyabuse.bls.digibase.ca
 spambot.bls.digibase.ca
 probes.dnsbl.net.auproxy.bl.gweep.ca
 rbl2.triumf.ca
-wbl.triumf.ca
+wbl.triumf.ca#DNSWL
 ipbl.zeustracker.abuse.ch
 uribl.zeustracker.abuse.ch
 spamrbl.imp.ch
@@ -61,12 +77,12 @@ cidr.bl.mcafee.com
 dnsbl.forefront.microsoft.com
 bl.mipspace.com
 bl.nordspam.com
-dbl.nordspam.com
+dbl.nordspam.com#URIBL
 bl.nszones.com
 dyn.nszones.com
 sbl.nszones.com
 ubl.nszones.com
-wl.nszones.com
+wl.nszones.com#DNSWL
 safe.dnsbl.prs.proofpoint.com
 rbl.realtimeblacklist.com
 mailsl.dnsbl.rjek.com
@@ -76,7 +92,6 @@ blackholes.scconsult.com
 reputation-domain.rbl.scrolloutf1.com
 reputation-ip.rbl.scrolloutf1.com
 reputation-ns.rbl.scrolloutf1.com
-score.senderscore.com
 bl.score.senderscore.com
 feb.spamlab.com
 rbl.spamlab.com
@@ -87,20 +102,20 @@ noptr.spamrats.com
 spam.spamrats.com
 rbl.suresupport.com
 psbl.surriel.com
-whitelist.surriel.com
+whitelist.surriel.com#DNSWL
 bl.tiopan.com
-dbl.tiopan.com
+dbl.tiopan.com#URIBL
 ubl.unsubscore.com
 black.uribl.com
 grey.uribl.com
 multi.uribl.com
 red.uribl.com
-white.uribl.com
+white.uribl.com#DNSWL
 spam.dnsbl.anonmails.de
 bl.blocklist.de
 dnsbl.darklist.de
 dnsbl.inps.de
-dnswl.inps.de
+dnswl.inps.de#DNSWL
 admin.bl.kundenserver.de
 relays.bl.kundenserver.de
 schizo-bl.kundenserver.de
@@ -113,8 +128,8 @@ hartkore.dnsbl.tuxad.de
 spamsources.fabel.dk
 st.technovision.dk
 dnsbl.abyan.es
-eswlrev.dnsbl.rediris.es
-mtawlrev.dnsbl.rediris.es
+eswlrev.dnsbl.rediris.es#DNSWL
+mtawlrev.dnsbl.rediris.es#DNSWL
 dnsbl.isx.fr
 all.spam-rbl.fr
 pofon.foobar.hu
@@ -166,7 +181,7 @@ uribl.mailcleaner.net
 dnsbl.mailshell.net
 bl.mailspike.net
 rep.mailspike.net
-wl.mailspike.net
+wl.mailspike.net#DNSWL
 z.mailspike.net
 ix.dnsbl.manitu.net
 combined.rbl.msrbl.net
@@ -228,10 +243,10 @@ uribl.spameatingmonkey.net
 urired.spameatingmonkey.net
 bsb.spamlookup.net
 dnsbl.spfbl.net
-dnswl.spfbl.net
 score.spfbl.net
+dnswl.spfbl.net#DNSWL
 bl.suomispam.net
-dbl.suomispam.net
+dbl.suomispam.net#URIBL
 gl.suomispam.net
 dob.sibl.support-intelligence.net
 srn.surgate.net
@@ -253,7 +268,7 @@ dnsbl.beetjevreemd.nl
 bitonly.dnsbl.bit.nl
 virbl.bit.nl
 blacklist.sci.kun.nl
-whitelist.sci.kun.nl
+whitelist.sci.kun.nl#DNSWL
 blackholes.tepucom.nl
 bl.konstant.no
 bl.0spam.org
@@ -270,8 +285,8 @@ plus.bondedsender.org
 query.bondedsender.org
 dnsblchile.org
 dnsrbl.org
-dwl.dnswl.org
-list.dnswl.org
+dwl.dnswl.org#DNSWL
+list.dnswl.org#DNSWL
 bl.drmx.org
 dnsbl.dronebl.org
 rbl.efnet.org
@@ -297,11 +312,12 @@ whois.rfc-clueless.org
 public.sarbl.org
 rbl.schulte.org
 sbl.spamdown.org
-vouch.dwl.spamhaus.org
+dbl.spamhaus.org#URIBL
+vouch.dwl.spamhaus.org#DNSWL
 pbl.spamhaus.org
 sbl.spamhaus.org
 sbl-xbl.spamhaus.org
-swl.spamhaus.org
+swl.spamhaus.org#DNSWL
 xbl.spamhaus.org
 zen.spamhaus.org
 abuse.surbl.org
@@ -312,7 +328,7 @@ dnsbl.tornevall.org
 opm.tornevall.org
 free.v4bl.org
 ip.v4bl.org
-ips.whitelisted.org
+ips.whitelisted.org#DNSWL
 dnsbl.calivent.com.pe
 forbidden.icm.edu.pl
 dyn.rbl.polspam.pl
@@ -329,7 +345,7 @@ vote.drbl.gremlin.ru
 work.drbl.gremlin.ru
 dul.dnsbl.sorbs.netdul.ru
 bl.shlink.orgdul.ru
-rbl.rbldns.ru
+#rbl.rbldns.ru
 dnsbl.rymsho.ru
 rhsbl.rymsho.ru
 netblockbl.spamgrouper.to
