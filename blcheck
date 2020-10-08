@@ -28,13 +28,32 @@
 # description       : Test any domain against more than 100 black lists.
 # author            : Intellex
 # contributors      : Darko Poljak
-# date              : 2020-01-23
-# version           : 0.6.0
+# date              : 2020-10-08
+# version           : 0.7.0
 # usage             : blcheck [options] <domain_or_ip>
 # reference         : http://multirbl.valli.org/list/
 # code style        : https://google.github.io/styleguide/shell.xml
 #
 # =============================================================================
+
+# Bash setup {
+#set -o pipefail  # trace ERR through pipes
+set -o errtrace  # trace ERR through 'time command' and other functions
+set -o nounset   ## set -u : exit the script if you try to use an uninitialised variable
+set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
+
+function cleanup {
+	rm -f "${COUNT_FILE}" "${COUNT_FILE}.lock"
+}
+
+function handleError {
+	cleanup
+	error "Command was interrupted."
+	exit 99
+}
+trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
+
+#~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
 # Config {
 
@@ -47,12 +66,14 @@
     # how many dig/host processes to run in parallel
     # this can be a number of threads (6)
     # or a percentage of cpu cores (75%)
-    CONF_USE_OF_CORES=$(( $(nproc) / 4 * 3 ))
+    CONF_USE_OF_CORES="75%"
 
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
 
 # Definitions {
+
+    COUNT_FILE=/tmp/blcheck.$$
 
     # Common regular expressions
     REGEX_IP='\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)'
@@ -86,6 +107,8 @@
     #SPINNER="◴◷◶◵"
     #SPINNER="◐◓◑◒"
 
+    DNSSERVER=
+    PLAIN=
     VERBOSE=0
 
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
@@ -108,8 +131,7 @@
 
     # Show progress
     progress() {
-        #local completed=$(flock -x "${COUNT_FILE}" cat "${COUNT_FILE}")
-        local completed=$(($1 - 1))
+        local completed=$1
 
         # Bar
         local x=$((${completed} % ${#SPINNER} + 1))
@@ -119,11 +141,12 @@
         fi
 
         # BAR as printf arg so that backslash will be litteraly interpreted
-        printf "[ %s %3s%% ] checking... %4s / $2  " "${BAR}" $((${completed} * 100 / $2)) "${completed}";
+        printf "[ %s %3s%% ] checking... %4s / $2  \r" "${BAR}" $((${completed} * 100 / $2)) "${completed}";
     }
 
     # Resolve the IP
     resolve() {
+        local type=${2:-a}
 
         # IP already?
         local IP=$(echo "$1" | grep "^${REGEX_IP}$")
@@ -134,7 +157,7 @@
         else
 
             # Handle special resolve types
-            case "$2" in
+            case "${type}" in
                 "ns" ) TYPE="ns"; REGEX="${REGEX_DOMAIN}\.$";;
                    * ) TYPE="a";  REGEX="${REGEX_IP}$";;
             esac
@@ -162,6 +185,131 @@
                 ${CMD_HOST} ) "${CMD}" -t "${TYPE}" -W ${CONF_DNS_DURATION} -R ${CONF_DNS_TRIES} "$1" ${DNSSERVER} | tail -n1 ;;
             esac
         fi
+    }
+
+    # Iterate over all blacklists
+    check() {
+        local I=$1
+        local BL=$2
+
+        local PREFIX=
+        I=$((I + 1))
+
+        # Parse list entry
+        if [[ ! ${BL} =~ ${REGEX_LIST} ]]; then
+            error "List entry ${BL} broken"
+        fi
+        local DOMAIN="${BASH_REMATCH[1]}"
+        local FILTER="${BASH_REMATCH[3]}"
+        local TYPE="${BASH_REMATCH[6]}"
+
+
+
+        # What should we test
+        if [[ "${TYPE}" != "URIBL" ]]; then
+            # IP based test
+            local TEST="${REVERSED}.${DOMAIN}."
+        else
+            # Domain name based test (URI)
+            local TEST="${TARGET}.${DOMAIN}."
+        fi
+
+
+        # Make sure the info is shown if we are checking the servers
+        if [[ "${VERIFY_BL}" && "${VERBOSE}" -lt 1 ]]; then
+            local VERBOSE=1
+        fi
+
+        # Get the status
+        local RESPONSE=$(resolve "${TEST}")
+
+        # output has to be threat safe
+        (
+            flock -x 9
+
+            # For verbose output
+            if [[ "${VERBOSE}" -ge 1 ]]; then
+
+                # Show percentage
+                local STATUS=$(( $(cat "${COUNT_FILE}" | wc -l) + 1 ))
+                STATUS=$(printf " %3s" "$((${STATUS} * 100 / ${COUNT} ))")
+                STATUS="${STATUS}% "
+
+                # Show additional info
+                if [[ "${VERBOSE}" -ge 3 ]]; then
+                    PREFIX=$(printf "%-60s" "${TEST}")
+                else
+                    PREFIX=$(printf "%-50s" "${DOMAIN}")
+                fi
+
+                PREFIX="${STATUS} ${PREFIX}"
+                if [[ -z "${PLAIN}" ]]; then
+                    printf "%s \b" "${PREFIX}"
+                fi
+            fi
+
+            # Not blacklisted
+            if [[ -z "${RESPONSE}" ]]; then
+
+                # Make sure the server is viable
+                ERROR=""
+                if [[ "${VERIFY_BL}" ]]; then
+                    TDL=$(echo "${DOMAIN}" | grep -om 1 '\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)[a-zA-Z]\{2,\}$')
+                    if [[ ! "$(resolve "${TDL}" ns)" ]]; then
+                        if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
+                        printf "%s%sUnreachable server%s\n" "${YELLOW}" "${PREFIX}" "${CLEAR}";
+                        echo "I" >>"${COUNT_FILE}"
+                        ERROR=TRUE
+                    fi
+                fi
+
+                if [[ ! "${ERROR}" ]]; then
+                    if [[ -n "${VERIFY_BL}" || "${VERBOSE}" -ge 1 ]]; then
+                        if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
+                        printf "%s%s✓%s\n" "${CLEAR}" "${PREFIX}" "${CLEAR}";
+                    fi
+                    echo "P" >>"${COUNT_FILE}"
+                fi;
+
+            # Invalid response
+            elif [[ ! "${RESPONSE}" =~ ${FILTER} ]]; then
+                if [[ "${VERBOSE}" -ge 1 ]]; then
+                    if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
+                    printf "%s%sinvalid response (%s)%s\n" "${YELLOW}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
+                    printf "%s%${#PREFIX}s%s%s\n" "${YELLOW}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
+                fi;
+                echo "I" >>"${COUNT_FILE}"
+
+            # matched
+            else
+                if [[ "${TYPE}" != "DNSWL" ]]; then
+                    if [[ "${VERBOSE}" -ge 1 ]]; then
+                        if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
+                        printf "%s%sblacklisted (%s)%s\n" "${RED}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
+                        printf "%s%${#PREFIX}s%s%s\n" "${RED}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
+                    elif [[ "${VERBOSE}" -ge 0 ]]; then
+                        if [[ -z "${PLAIN}" ]]; then printf "\r                                                          "; printf "\r"; fi
+                        printf "%s%s%s : %s\n" "${RED}" "${DOMAIN}" "${CLEAR}" "${RESPONSE}"
+                    fi
+                    echo "F" >>"${COUNT_FILE}"
+                else
+                    if [[ "${VERBOSE}" -ge 1 ]]; then
+                        if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
+                        printf "%s%swhitelisted (%s)%s\n" "${GREEN}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
+                        printf "%s%${#PREFIX}s%s%s\n" "${GREEN}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
+                    elif [[ "${VERBOSE}" -ge 0 ]]; then
+                        if [[ -z "${PLAIN}" ]]; then printf "\r                                                          "; printf "\r"; fi
+                        printf "%s%s%s : %s\n" "${GREEN}" "${DOMAIN}" "${CLEAR}" "${RESPONSE}"
+                    fi
+                    echo "W" >>"${COUNT_FILE}"
+                fi
+            fi
+            if [[ "${VERBOSE}" -ge 0 ]]; then
+                if [[ -z "${PLAIN}" ]]; then
+                    progress "$(cat "${COUNT_FILE}" | wc -l)" "${COUNT}"
+                fi
+            fi
+        ) 9>"${COUNT_FILE}.lock"
     }
 
     # Load list from file
@@ -192,6 +340,7 @@ If the IP is supplied, the PTR check cannot be executed and will be skipped.
 -v          Verbose mode, can be used multiple times (up to -vvv)
 -q          Quiet mode with absolutely no output (useful for scripts)
 -p          Plain text output (no coloring, no interactive status)
+-t          Thread numbers (4) or percentage (75%) of cores to use
 -h          The help you are just reading
 
 Result of the script is the number of blacklisted entries. So if the supplied
@@ -204,7 +353,7 @@ HELP
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
 # Parse the params
-while getopts :vqphcl:d: arg; do
+while getopts :vqphclt:d: arg; do
     case "${arg}" in
         d) DNSSERVER="${OPTARG}";;
         l) CONF_LIST_FILE="${OPTARG}";;
@@ -212,6 +361,7 @@ while getopts :vqphcl:d: arg; do
         v) VERBOSE=$((VERBOSE + 1));;
         q) VERBOSE=-1;;
         p) PLAIN=1 RED="" GREEN="" YELLOW="" CLEAR="" ;;
+        t) CONF_USE_OF_CORES="${OPTARG}";;
         h) showHelp;;
         ?) error "Unknown option ${OPTARG}";;
     esac
@@ -351,131 +501,9 @@ info 1 "  - ${COUNT_DNSBL} DNS blacklists"
 info 1 "  - ${COUNT_DNSWL} DNS whitelists"
 info 1 "  - ${COUNT_URIBL} URI blacklists"
 
-# Iterate over all blacklists
-parallel_check() {
-    local I=$1
-    local BL=$2
-
-    local PREFIX=
-    I=$((I + 1))
-
-    # Parse list entry
-    if [[ ! ${BL} =~ ${REGEX_LIST} ]]; then
-        error "List entry ${BL} broken"
-    fi
-    local DOMAIN="${BASH_REMATCH[1]}"
-    local FILTER="${BASH_REMATCH[3]}"
-    local TYPE="${BASH_REMATCH[6]}"
-
-
-
-    # What should we test
-    if [[ "${TYPE}" != "URIBL" ]]; then
-        # IP based test
-        local TEST="${REVERSED}.${DOMAIN}."
-    else
-        # Domain name based test (URI)
-        local TEST="${TARGET}.${DOMAIN}."
-    fi
-
-
-    # Make sure the info is shown if we are checking the servers
-    if [[ "${VERIFY_BL}" && "${VERBOSE}" -lt 1 ]]; then
-        local VERBOSE=1
-    fi
-
-    # For verbose output
-    if [[ "${VERBOSE}" -ge 1 ]]; then
-
-        # Show percentage
-        local STATUS=$(printf " %3s" $((I * 100 / COUNT)))
-        STATUS="${STATUS}% "
-
-        # Show additional info
-        if [[ "${VERBOSE}" -ge 3 ]]; then
-            PREFIX=$(printf "%-60s" "${TEST}")
-        else
-            PREFIX=$(printf "%-50s" "${DOMAIN}")
-        fi
-
-        PREFIX="${STATUS} ${PREFIX}"
-        if [[ -z "${PLAIN}" ]]; then
-            printf "%s \b" "${PREFIX}"
-        fi
-
-    elif [[ "${VERBOSE}" -ge 0 ]]; then
-        if [[ -z "${PLAIN}" ]]; then
-            progress "${I}" "${COUNT}"
-        fi
-    fi
-
-    # Get the status
-    local RESPONSE=$(resolve "${TEST}")
-
-    # Not blacklisted
-    if [[ -z "${RESPONSE}" ]]; then
-
-        # Make sure the server is viable
-        ERROR=""
-        if [[ "${VERIFY_BL}" ]]; then
-            TDL=$(echo "${DOMAIN}" | grep -om 1 '\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)[a-zA-Z]\{2,\}$')
-            if [[ ! "$(resolve "${TDL}" ns)" ]]; then
-                if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                printf "%s%sUnreachable server%s\n" "${YELLOW}" "${PREFIX}" "${CLEAR}";
-                flock -x "${COUNT_FILE}" echo "I" >>"${COUNT_FILE}"
-                ERROR=TRUE
-            fi
-        fi
-
-        if [[ ! "${ERROR}" ]]; then
-            if [[ -n "${VERIFY_BL}" || "${VERBOSE}" -ge 1 ]]; then
-                if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                printf "%s%s✓%s\n" "${CLEAR}" "${PREFIX}" "${CLEAR}";
-            fi
-            flock -x "${COUNT_FILE}" echo "P" >>"${COUNT_FILE}"
-        fi;
-
-    # Invalid response
-    elif [[ ! "${RESPONSE}" =~ ${FILTER} ]]; then
-        if [[ "${VERBOSE}" -ge 1 ]]; then
-            if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-            printf "%s%sinvalid response (%s)%s\n" "${YELLOW}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
-            printf "%s%${#PREFIX}s%s%s\n" "${YELLOW}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
-        fi;
-        flock -x "${COUNT_FILE}" echo "I" >>"${COUNT_FILE}"
-
-    # matched
-    else
-        if [[ "${TYPE}" != "DNSWL" ]]; then
-            if [[ "${VERBOSE}" -ge 1 ]]; then
-                if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                printf "%s%sblacklisted (%s)%s\n" "${RED}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
-                printf "%s%${#PREFIX}s%s%s\n" "${RED}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
-            elif [[ "${VERBOSE}" -ge 0 ]]; then
-                if [[ -z "${PLAIN}" ]]; then printf "\r                                                          "; printf "\r"; fi
-                printf "%s%s%s : %s\n" "${RED}" "${DOMAIN}" "${CLEAR}" "${RESPONSE}"
-            fi
-            flock -x "${COUNT_FILE}" echo "F" >>"${COUNT_FILE}"
-        else
-            if [[ "${VERBOSE}" -ge 1 ]]; then
-                if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                printf "%s%swhitelisted (%s)%s\n" "${GREEN}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
-                printf "%s%${#PREFIX}s%s%s\n" "${GREEN}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
-            elif [[ "${VERBOSE}" -ge 0 ]]; then
-                if [[ -z "${PLAIN}" ]]; then printf "\r                                                          "; printf "\r"; fi
-                printf "%s%s%s : %s\n" "${GREEN}" "${DOMAIN}" "${CLEAR}" "${RESPONSE}"
-            fi
-            flock -x "${COUNT_FILE}" echo "W" >>"${COUNT_FILE}"
-        fi
-    fi
-}
-
-COUNT_FILE=/tmp/blcheck.$$
-touch "${COUNT_FILE}"
-
-export -f parallel_check resolve text progress
+export -f check info error resolve text progress
 export REGEX_LIST REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT YELLOW CLEAR RED GREEN SPINNER REGEX_IP REGEX_DOMAIN CMD_DIG DNSSERVER CONF_DNS_DURATION CONF_DNS_TRIES REGEX CMD_HOST CMD COUNT_FILE
-parallel -j "${CONF_USE_OF_CORES}" 'parallel_check {#} {}' ::: ${BLACKLISTS}
+parallel -j "${CONF_USE_OF_CORES}" 'check {#} {}' ::: ${BLACKLISTS}
 
 # Initialize the counters
 INVALID=$(grep -o 'I' "${COUNT_FILE}" | wc -l)
@@ -502,4 +530,7 @@ if [[ "${VERBOSE}" -ge 0 ]]; then
     echo "----------------------------------------------------------"
 fi
 
+cleanup
 exit "${FAILED}"
+
+# vim: tabstop=4: shiftwidth=4: expandtab:
