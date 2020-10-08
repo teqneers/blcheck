@@ -1,3 +1,7 @@
+# Default list file
+# 
+# All empty lines are going to be ignore as well as all lines starting with "#".
+#
 # Example formats:
 # - General format
 #   {ip_or_domain}={filter}#{type}
@@ -13,6 +17,7 @@
 #   black.list.com=127\.0\.0\.[23]
 # - Regexp defined return code for a URI based blacklist
 #   black.list.com=127\.0\.[0-9]+\.0#URIBL
+#
 whitelist.rbl.ispa.at#DNSWL
 t3direct.dnsbl.net.au
 ucepn.dnsbl.net.au
@@ -343,7 +348,7 @@ dnsbl.net.ua
 rbl.fasthosts.co.uk
 torexit.dan.me.uk
 bsb.empty.us
-88.blocklist.zap"
+88.blocklist.zap
 
 # v6.fullbogons.cymru.com
 
@@ -366,5 +371,5 @@ bsb.empty.us
 #dbl.spamhaus.org#URIBL
 #t3direct.dnsbl.net.au=127\.0\.0\.1#DNSWL
 #t3direct.dnsbl.net.au#BLA
-#t3direct.dnsbl.net.au%127\.0\.0\.1#DNSWL"
+#t3direct.dnsbl.net.au%127\.0\.0\.1#DNSWL
 
