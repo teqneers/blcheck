@@ -1,31 +1,13 @@
 #!/bin/bash
 #
-# MIT License
+# License
 #
-# Copyright (c) Intellex 2015
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
+# blcheck is distributed under the terms of the MIT License. See [license file](LICENSE.md) for details.
+
 # =============================================================================
 #
 # title             : blcheck
-# description       : Test any domain against more than 100 black lists.
+# description       : Test any domain against hundrets of block lists.
 # author            : Intellex
 # contributors      : Darko Poljak
 # date              : 2020-10-08
@@ -188,7 +170,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         fi
     }
 
-    # Iterate over all blacklists
+    # Check domain/IP against a single list entry
     check() {
         local I=$1
         local BL=$2
@@ -249,7 +231,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                 fi
             fi
 
-            # Not blacklisted
+            # Not blocklisted
             if [[ -z "${RESPONSE}" ]]; then
 
                 # Make sure the server is viable
@@ -286,7 +268,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                 if [[ "${TYPE}" != "DNSWL" ]]; then
                     if [[ "${VERBOSE}" -ge 1 ]]; then
                         if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                        printf "%s%sblacklisted (%s)%s\n" "${RED}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
+                        printf "%s%sblocklisted (%s)%s\n" "${RED}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
                         printf "%s%${#PREFIX}s%s%s\n" "${RED}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
                     elif [[ "${VERBOSE}" -ge 0 ]]; then
                         if [[ -z "${PLAIN}" ]]; then printf "\r                                                          "; printf "\r"; fi
@@ -296,7 +278,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                 else
                     if [[ "${VERBOSE}" -ge 1 ]]; then
                         if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                        printf "%s%swhitelisted (%s)%s\n" "${GREEN}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
+                        printf "%s%sallowlisted (%s)%s\n" "${GREEN}" "${PREFIX}" "${RESPONSE}" "${CLEAR}";
                         printf "%s%${#PREFIX}s%s%s\n" "${GREEN}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
                     elif [[ "${VERBOSE}" -ge 0 ]]; then
                         if [[ -z "${PLAIN}" ]]; then printf "\r                                                          "; printf "\r"; fi
@@ -324,7 +306,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         fi
 
         # Ignore commented and empty lines
-        CONF_BLACKLISTS=$(cat "$1" | grep -vE "^(#|$)")
+        CONF_LISTS=$(cat "$1" | grep -vE "^(#|$)")
     }
 
     # Show help
@@ -336,16 +318,16 @@ Supplied domain must be full qualified domain name.
 If the IP is supplied, the PTR check cannot be executed and will be skipped.
 
 -d dnshost  Use host as DNS server to make lookups
--l file     Load blacklists from file, separated by space or new line
--c          Warn if the top level domain of the blacklist has expired
+-l file     Load lists from file with one entry per line
+-c          Warn if the top level domain of the list has expired
 -v          Verbose mode, can be used multiple times (up to -vvv)
 -q          Quiet mode with absolutely no output (useful for scripts)
 -p          Plain text output (no coloring, no interactive status)
 -t          Thread numbers (4) or percentage (75%) of cores to use
 -h          The help you are just reading
 
-Result of the script is the number of blacklisted entries. So if the supplied
-IP is not blacklisted on any of the servers the result is 0.
+Result of the script is the number of blocklisted entries. So if the supplied
+IP is not blocklisted on any of the servers the return code is 0.
 
 HELP
         exit;
@@ -442,13 +424,13 @@ else
     fi
 fi
 
-# Filter out the blacklists
-BLACKLISTS=""
+# Filter out the blocklists
+BLOCKLISTS=""
 COUNT_DNSBL=0
 COUNT_DNSWL=0
 COUNT_URIBL=0
 COUNT=0
-for BL in ${CONF_BLACKLISTS}; do
+for BL in ${CONF_LISTS}; do
     if [[ "${BL}" ]]; then
         if [[ ${BL} =~ ${REGEX_LIST} ]]; then
             DOMAIN="${BASH_REMATCH[1]}"
@@ -479,11 +461,11 @@ for BL in ${CONF_BLACKLISTS}; do
                 esac
                 COUNT=$((COUNT + 1))
 
-                # It is a proper blacklist
-                if [[ "${BLACKLISTS}" ]]; then
-                    BLACKLISTS=$(echo "${BLACKLISTS}\n${DOMAIN}=${FILTER}#${TYPE}")
+                # It is a proper blocklist
+                if [[ "${BLOCKLISTS}" ]]; then
+                    BLOCKLISTS=$(echo "${BLOCKLISTS}\n${DOMAIN}=${FILTER}#${TYPE}")
                 else
-                    BLACKLISTS="${DOMAIN}=${FILTER}#${TYPE}"
+                    BLOCKLISTS="${DOMAIN}=${FILTER}#${TYPE}"
                 fi
             fi
             fi
@@ -493,24 +475,25 @@ for BL in ${CONF_BLACKLISTS}; do
     fi
 done
 
-# Make sure we have at least one blacklist
+# Make sure we have at least one list entry
 if [[ "${COUNT}" -eq 0 ]]; then
-    error "No blacklists have been specified"
+    error "No list have been specified"
 fi
 info 1 "Matching against ${COUNT} entries:"
-info 1 "  - ${COUNT_DNSBL} DNS blacklists"
-info 1 "  - ${COUNT_DNSWL} DNS whitelists"
-info 1 "  - ${COUNT_URIBL} URI blacklists"
+info 1 "  - ${COUNT_DNSBL} DNS blocklists"
+info 1 "  - ${COUNT_DNSWL} DNS allowlists"
+info 1 "  - ${COUNT_URIBL} URI blocklists"
 
+# Iterate over all list entries
 export -f check info error resolve text progress
 export REGEX_LIST REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT YELLOW CLEAR RED GREEN SPINNER REGEX_IP REGEX_DOMAIN CMD_DIG DNSSERVER CONF_DNS_DURATION CONF_DNS_TRIES REGEX CMD_HOST CMD COUNT_FILE
-parallel -j "${CONF_USE_OF_CORES}" 'check {#} {}' ::: ${BLACKLISTS}
+parallel -j "${CONF_USE_OF_CORES}" 'check {#} {}' ::: ${BLOCKLISTS}
 
 # Initialize the counters
 INVALID=$(grep -o 'I' "${COUNT_FILE}" | wc -l)
 PASSED=$(grep -o 'P' "${COUNT_FILE}" | wc -l)
 FAILED=$(grep -o 'F' "${COUNT_FILE}" | wc -l)
-WHITE=$(grep -o 'W' "${COUNT_FILE}" | wc -l)
+ALLOW=$(grep -o 'W' "${COUNT_FILE}" | wc -l)
 
 
 # Print results
@@ -525,9 +508,9 @@ if [[ "${VERBOSE}" -ge 0 ]]; then
     echo
     printf "%-15s" "Tested:";   echo "${COUNT}"
     printf "%-15s" "Passed:";   echo "${GREEN}${PASSED}${CLEAR}"
-    printf "%-15s" "Whitelisted:";  echo "${GREEN}${WHITE}${CLEAR}"
+    printf "%-15s" "Allowlisted:";  echo "${GREEN}${ALLOW}${CLEAR}"
     printf "%-15s" "Invalid:";  echo "${YELLOW}${INVALID}${CLEAR}"
-    printf "%-15s" "Blacklisted:";  echo "${RED}${FAILED}${CLEAR}"
+    printf "%-15s" "Blocklisted:";  echo "${RED}${FAILED}${CLEAR}"
     echo "----------------------------------------------------------"
 fi
 
