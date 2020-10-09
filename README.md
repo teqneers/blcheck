@@ -59,7 +59,7 @@ Credits
 
 Script has been written by the [Intellex](https://intellex.rs/en) team.
 Additional contributors:
-	[Darko Poljak](https://github.com/darko-poljak)
-	[Oliver Mueller](https://github.com/ogmueller)
- 	[Andrej Walilko](https://github.com/ch604)
+* [Darko Poljak](https://github.com/darko-poljak)
+* [Oliver Mueller](https://github.com/ogmueller)
+* [Andrej Walilko](https://github.com/ch604)
 
