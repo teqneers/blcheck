@@ -49,7 +49,7 @@ function cleanup {
 function handleError {
 	cleanup
 	error "Command was interrupted."
-	exit -2
+	exit 99
 }
 trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
@@ -127,7 +127,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     # Error handling
     error() {
         echo "ERROR: $1" >&2
-        exit -1
+        exit 2
     }
 
     # Show progress
@@ -354,7 +354,7 @@ HELP
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
 # Parse the params
-while getopts :vqphclt:d: arg; do
+while getopts :vqphcl:t:d: arg; do
     case "${arg}" in
         d) DNSSERVER="${OPTARG}";;
         l) CONF_LIST_FILE="${OPTARG}";;
@@ -532,6 +532,12 @@ if [[ "${VERBOSE}" -ge 0 ]]; then
 fi
 
 cleanup
-exit "${FAILED}"
+
+if [[ "${FAILED}" -gt 0 ]]; then
+    if [[ "${VERBOSE}" -eq -1 ]]; then
+        echo "${FAILED}"
+    fi
+    exit 1
+fi
 
 # vim: tabstop=4: shiftwidth=4: expandtab:
