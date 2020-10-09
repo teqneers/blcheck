@@ -26,6 +26,7 @@ Requirements
 Usage
 --------------------
 
+```
 blcheck [options] <domain\_or\_IP>
 
 Supplied domain must be full qualified domain name.
@@ -42,6 +43,7 @@ If the IP is supplied, the PTR check cannot be executed and will be skipped.
 
 Result of the script is the number of blocklisted entries. So if the supplied
 IP is not blocklisted on any of the servers the return code is 0.
+```
 
 
 TODO
@@ -49,10 +51,12 @@ TODO
 
 1. Handle domains with multiple DNS entries.
 
+
 Licence
 --------------------
 
 blcheck is distributed under the terms of the MIT license. See [license file](LICENSE.md) for details.
+
 
 Credits
 --------------------
@@ -62,4 +66,3 @@ Additional contributors:
 * [Darko Poljak](https://github.com/darko-poljak)
 * [Oliver Mueller](https://github.com/ogmueller)
 * [Andrej Walilko](https://github.com/ch604)
-
