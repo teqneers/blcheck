@@ -1,5 +1,5 @@
 # Default list file
-# 
+#
 # All empty lines are going to be ignore as well as all lines starting with "#".
 #
 # Example formats:
@@ -71,8 +71,8 @@ iadb2.isipp.com
 iddb.isipp.com
 wadb.isipp.com
 black.junkemailfilter.com
-hostkarma.junkemailfilter.com
-nobl.junkemailfilter.com
+hostkarma.junkemailfilter.com=127\.0\.0\.[2-4]
+nobl.junkemailfilter.com=127\.0\.0\.[2-4]
 krn.korumail.com
 q.mail-abuse.com
 r.mail-abuse.com
@@ -372,4 +372,3 @@ bsb.empty.us
 #t3direct.dnsbl.net.au=127\.0\.0\.1#DNSWL
 #t3direct.dnsbl.net.au#BLA
 #t3direct.dnsbl.net.au%127\.0\.0\.1#DNSWL
-
