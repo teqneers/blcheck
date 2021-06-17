@@ -39,7 +39,9 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
 # Config {
 
-    SCRIPT_PATH=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+    pushd $(dirname "$0") >/dev/null
+    SCRIPT_PATH=$(pwd -P)
+    popd >/dev/null
 
     # How many tries and for how long to wait for DNS queries
     CONF_DNS_TRIES=2
@@ -50,7 +52,14 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     # how many dig/host processes to run in parallel
     # this can be a number of threads (6)
     # or a percentage of cpu cores (75%)
-    CONF_USE_OF_CORES="75%"
+    if [ "$(uname)" != "Darwin" ]; then
+        CONF_USE_OF_CORES="75%"
+        OS="linux"
+    else
+        CONF_USE_OF_CORES=$(sysctl -n hw.ncpu)
+        CONF_USE_OF_CORES=$((CONF_USE_OF_CORES * 3 / 4 ))
+        OS="macos"
+    fi
 
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
@@ -208,7 +217,9 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
         # output has to be threat safe
         (
-            flock -x 9
+            if [[ "${OS}" == "linux" ]]; then
+                flock -x 9
+            fi
 
             # For verbose output
             if [[ "${VERBOSE}" -ge 1 ]]; then
