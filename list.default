@@ -251,8 +251,10 @@ srnblack.surgate.net
 rbl.tdk.net
 dnsbl-0.uceprotect.net
 dnsbl-1.uceprotect.net
-dnsbl-2.uceprotect.net
-dnsbl-3.uceprotect.net
+# blocks /24 networks, which doesn't make sense anymore
+#dnsbl-2.uceprotect.net
+# blocks complete ASNs, which is way too much anyway
+#dnsbl-3.uceprotect.net
 all.rbl.webiron.net
 babl.rbl.webiron.net
 cabl.rbl.webiron.net
@@ -296,7 +298,6 @@ dnsbl.justspam.org
 bl.mailspike.org
 bl.nosolicitado.org
 bl.worst.nosolicitado.org
-dnsbl.openresolvers.org
 spam.pedantic.org
 access.redhawk.org
 abuse.rfc-clueless.org
