@@ -18,7 +18,7 @@ Features
 Requirements
 --------------------
 
-* Any Unix/Linux with POSIX shell.
+* Any Unix/Linux or macOS with BASH.
 * Either dig or host command available.
 * GNU parallel command available.
 
