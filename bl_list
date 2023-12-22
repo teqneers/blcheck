@@ -78,11 +78,6 @@ dnsbl.forefront.microsoft.com
 bl.mipspace.com
 bl.nordspam.com
 dbl.nordspam.com#URIBL
-bl.nszones.com
-dyn.nszones.com
-sbl.nszones.com
-ubl.nszones.com
-wl.nszones.com#DNSWL
 safe.dnsbl.prs.proofpoint.com
 rbl.realtimeblacklist.com
 mailsl.dnsbl.rjek.com
