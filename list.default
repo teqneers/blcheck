@@ -60,11 +60,7 @@ rbl.dns-servicios.com
 0spam-n.fusionzero.com
 0spamtrust.fusionzero.com
 0spamurl.fusionzero.com
-accredit.habeas.com
 hil.habeas.com
-hul.habeas.com
-sa-accredit.habeas.com
-sohul.habeas.com
 blacklist.hostkarma.com
 iadb.isipp.com
 iadb2.isipp.com
@@ -89,7 +85,6 @@ blackholes.scconsult.com
 reputation-domain.rbl.scrolloutf1.com
 reputation-ip.rbl.scrolloutf1.com
 reputation-ns.rbl.scrolloutf1.com
-bl.score.senderscore.com
 feb.spamlab.com
 rbl.spamlab.com
 all.spamrats.com
@@ -103,11 +98,6 @@ whitelist.surriel.com#DNSWL
 bl.tiopan.com
 dbl.tiopan.com#URIBL
 ubl.unsubscore.com
-black.uribl.com
-grey.uribl.com
-multi.uribl.com
-red.uribl.com
-white.uribl.com#DNSWL
 spam.dnsbl.anonmails.de
 bl.blocklist.de
 dnsbl.darklist.de
@@ -120,8 +110,6 @@ spamblock.kundenserver.de
 worms-bl.kundenserver.de
 dnsbl.madavi.de
 torserver.tor.dnsbl.sectoor.de
-dunk.dnsbl.tuxad.de
-hartkore.dnsbl.tuxad.de
 spamsources.fabel.dk
 st.technovision.dk
 dnsbl.abyan.es
@@ -180,7 +168,6 @@ bl.mailspike.net
 rep.mailspike.net
 wl.mailspike.net#DNSWL
 z.mailspike.net
-ix.dnsbl.manitu.net
 combined.rbl.msrbl.net
 images.rbl.msrbl.net
 phishing.rbl.msrbl.net
@@ -239,9 +226,9 @@ netbl.spameatingmonkey.net
 uribl.spameatingmonkey.net
 urired.spameatingmonkey.net
 bsb.spamlookup.net
-dnsbl.spfbl.net
-score.spfbl.net
-dnswl.spfbl.net#DNSWL
+#dnsbl.spfbl.net
+#score.spfbl.net
+#dnswl.spfbl.net#DNSWL
 bl.suomispam.net
 dbl.suomispam.net#URIBL
 gl.suomispam.net
@@ -279,8 +266,6 @@ ips.backscatterer.org
 b.barracudacentral.org
 bb.barracudacentral.org
 list.bbfh.org
-plus.bondedsender.org
-query.bondedsender.org
 dnsblchile.org
 dnsrbl.org
 dwl.dnswl.org#DNSWL
