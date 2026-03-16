@@ -69,7 +69,6 @@ wadb.isipp.com
 black.junkemailfilter.com
 hostkarma.junkemailfilter.com=127\.0\.0\.[2-4]
 nobl.junkemailfilter.com=127\.0\.0\.[2-4]
-krn.korumail.com
 q.mail-abuse.com
 r.mail-abuse.com
 cidr.bl.mcafee.com
@@ -109,7 +108,6 @@ schizo-bl.kundenserver.de
 spamblock.kundenserver.de
 worms-bl.kundenserver.de
 dnsbl.madavi.de
-torserver.tor.dnsbl.sectoor.de
 spamsources.fabel.dk
 st.technovision.dk
 dnsbl.abyan.es
@@ -182,37 +180,6 @@ all.s5h.net
 bl.scientificspam.net
 rhsbl.scientificspam.net
 korea.services.net
-dnsbl.sorbs.net
-block.dnsbl.sorbs.net
-exitnodes.tor.dnsbl.sectoor.dehttp.dnsbl.sorbs.net
-dul.dnsbl.sorbs.net
-escalations.dnsbl.sorbs.net
-http.dnsbl.sorbs.net
-misc.dnsbl.sorbs.net
-new.dnsbl.sorbs.net
-noservers.dnsbl.sorbs.net
-old.dnsbl.sorbs.net
-problems.dnsbl.sorbs.net
-proxies.dnsbl.sorbs.net
-recent.dnsbl.sorbs.net
-relays.dnsbl.sorbs.net
-safe.dnsbl.sorbs.net
-smtp.dnsbl.sorbs.net
-socks.dnsbl.sorbs.net
-spam.dnsbl.sorbs.net
-new.spam.dnsbl.sorbs.net
-old.spam.dnsbl.sorbs.net
-recent.spam.dnsbl.sorbs.net
-web.dnsbl.sorbs.net
-zombie.dnsbl.sorbs.net
-aspews.ext.sorbs.net
-l1.bbfh.ext.sorbs.net
-l2.bbfh.ext.sorbs.net
-l3.bbfh.ext.sorbs.net
-l4.bbfh.ext.sorbs.net
-rhsbl.sorbs.net
-badconf.rhsbl.sorbs.net
-nomail.rhsbl.sorbs.net
 bl.spamcop.net
 backscatter.spameatingmonkey.net
 bl.spameatingmonkey.net
@@ -267,7 +234,6 @@ b.barracudacentral.org
 bb.barracudacentral.org
 list.bbfh.org
 dnsblchile.org
-dnsrbl.org
 dwl.dnswl.org#DNSWL
 list.dnswl.org#DNSWL
 bl.drmx.org
@@ -323,8 +289,6 @@ rbl.abuse.ro
 uribl.abuse.ro
 vote.drbl.caravan.ru
 work.drbl.caravan.ru
-dul.dnsbl.sorbs.netdul.ru
-bl.shlink.orgdul.ru
 dnsbl.rymsho.ru
 rhsbl.rymsho.ru
 dnsbl.mcu.edu.tw
@@ -332,7 +296,6 @@ dnsbl.net.ua
 rbl.fasthosts.co.uk
 torexit.dan.me.uk
 bsb.empty.us
-88.blocklist.zap
 
 # v6.fullbogons.cymru.com
 

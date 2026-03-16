@@ -7,12 +7,13 @@ Script will use dig if it is found. If dig is not found script will use host.
 Features
 --------------------
 
-* More then __300 block lists__ already included!
+* More then __250 block lists__ already included!
 * Automatic distinction between __domain or IP__
 * Performs __PTR validation__ (only if domain is supplied, does not work for IP)
 * 3 verbose (-v) levels and a quiet (-q) mode
 * The result of script is the number of services which blocklisted the domain, so it can be used for any kind of __automated scripts or cronjobs__
 * Informative and pleasant output
+* Concurrent execution
 
 
 Requirements
@@ -52,6 +53,7 @@ TODO
 --------------------
 
 1. Handle domains with multiple DNS entries.
+2. Handle IPv6.
 
 
 Licence
