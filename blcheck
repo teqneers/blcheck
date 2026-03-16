@@ -48,15 +48,13 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
     CONF_LIST_FILE="${SCRIPT_PATH}/list.default"
 
-    # how many dig/host processes to run in parallel
-    # this can be a number of threads (6)
-    # or a percentage of cpu cores (75%)
+    # How many dig/host processes to run in parallel (default: 75% of cores).
+    # Can be overridden with -j: a fixed number (e.g. 6) or a core percentage (e.g. 50%).
+    CONF_USE_OF_CORES="75%"
+
     if [ "$(uname)" != "Darwin" ]; then
-        CONF_USE_OF_CORES="75%"
         OS="linux"
     else
-        CONF_USE_OF_CORES=$(sysctl -n hw.ncpu)
-        CONF_USE_OF_CORES=$((CONF_USE_OF_CORES * 3 / 4 ))
         OS="macos"
     fi
 
