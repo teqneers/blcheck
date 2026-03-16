@@ -25,7 +25,8 @@ set -o nounset   ## set -u : exit the script if you try to use an uninitialised 
 set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
 
 function cleanup() {
-	rm -f "${COUNT_FILE}" "${COUNT_FILE}.lock"
+	rm -f "${COUNT_FILE}" "${COUNT_FILE}.lock" "${JSON_FILE}"
+	rmdir "${COUNT_FILE}.lock.d" 2>/dev/null || true
 }
 
 function handleError() {
@@ -64,6 +65,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 # Definitions {
 
     COUNT_FILE=/tmp/blcheck.$$
+    JSON_FILE=/tmp/blcheck.$$.json
 
     # Common regular expressions
     REGEX_IP='\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)'
@@ -101,6 +103,8 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     DOMAIN=
     PLAIN=
     VERBOSE=0
+    VERIFY_BL=
+    OUTPUT_FORMAT=text
 
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
@@ -206,6 +210,18 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         fi
     }
 
+    # Write a JSONL entry when JSON output is enabled
+    function json_entry() {
+        if [[ "${OUTPUT_FORMAT}" == "json" ]]; then
+            local list="$1" type="$2" status="$3" response="${4:-}" txt="${5:-}"
+            # Escape double quotes in values
+            response="${response//\"/\\\"}"
+            txt="${txt//\"/\\\"}"
+            printf '{"list":"%s","type":"%s","status":"%s","response":"%s","txt":"%s"}\n' \
+                "${list}" "${type}" "${status}" "${response}" "${txt}" >>"${JSON_FILE}"
+        fi
+    }
+
     # Check domain/IP against a single list entry
     function check() {
         local I=$1
@@ -246,6 +262,12 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         (
             if [[ "${OS}" == "linux" ]]; then
                 flock -x 9
+            else
+                # macOS has no flock; use mkdir as a portable lock
+                while ! mkdir "${COUNT_FILE}.lock.d" 2>/dev/null; do
+                    sleep 0.01
+                done
+                trap 'rmdir "${COUNT_FILE}.lock.d" 2>/dev/null' EXIT
             fi
 
             # For verbose output
@@ -272,14 +294,16 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
             # Not blocklisted
             if [[ -z "${RESPONSE}" ]]; then
 
-                # Make sure the server is viable
+                # Optionally verify the list is still reachable (-c flag)
                 ERROR=""
                 if [[ "${VERIFY_BL}" ]]; then
+                    local TDL
                     TDL=$(echo "${DOMAIN}" | grep -om 1 '\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)[a-zA-Z]\{2,\}$')
                     if [[ ! "$(resolve "${TDL}" ns)" ]]; then
                         if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
-                        printf "%s%sUnreachable server%s\n" "${YELLOW}" "${PREFIX}" "${CLEAR}";
+                        printf "%s%sunreachable server%s\n" "${YELLOW}" "${PREFIX}" "${CLEAR}";
                         echo "I" >>"${COUNT_FILE}"
+                        json_entry "${DOMAIN}" "${TYPE}" "unreachable" "" ""
                         ERROR=TRUE
                     fi
                 fi
@@ -290,6 +314,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                         printf "%s%s✓%s\n" "${CLEAR}" "${PREFIX}" "${CLEAR}";
                     fi
                     echo "P" >>"${COUNT_FILE}"
+                    json_entry "${DOMAIN}" "${TYPE}" "pass" "" ""
                 fi;
 
             # Invalid response
@@ -300,6 +325,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                     printf "%s%${#PREFIX}s%s%s\n" "${YELLOW}" "TXT: " "$(text "${TEST}")" "${CLEAR}";
                 fi;
                 echo "I" >>"${COUNT_FILE}"
+                json_entry "${DOMAIN}" "${TYPE}" "invalid" "${RESPONSE}" ""
 
             # matched
             else
@@ -313,6 +339,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                         printf "%s%s%s : %s\n" "${RED}" "${DOMAIN}" "${CLEAR}" "${RESPONSE}"
                     fi
                     echo "F" >>"${COUNT_FILE}"
+                    json_entry "${DOMAIN}" "${TYPE}" "blocklisted" "${RESPONSE}" "$(text "${TEST}")"
                 else
                     if [[ "${VERBOSE}" -ge 1 ]]; then
                         if [[ -z "${PLAIN}" ]]; then printf "\r"; fi
@@ -323,6 +350,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
                         printf "%s%s%s : %s\n" "${GREEN}" "${DOMAIN}" "${CLEAR}" "${RESPONSE}"
                     fi
                     echo "W" >>"${COUNT_FILE}"
+                    json_entry "${DOMAIN}" "${TYPE}" "allowlisted" "${RESPONSE}" "$(text "${TEST}")"
                 fi
             fi
             if [[ "${VERBOSE}" -ge 0 ]]; then
@@ -361,6 +389,7 @@ If an IP (v4 or v6) is supplied, the PTR check cannot be executed and will be sk
 -v          Verbose mode, can be used multiple times (up to -vvv)
 -q          Quiet mode with absolutely no output (useful for scripts)
 -p          Plain text output (no coloring, no interactive status)
+-j          JSON output (implies -p)
 -t          Thread numbers (4) or percentage (75%) of cores to use
 -h          The help you are just reading
 
@@ -374,7 +403,7 @@ HELP
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
 # Parse the params
-while getopts :vqphcl:t:d: arg; do
+while getopts :vqphjcl:t:d: arg; do
     case "${arg}" in
         d) DNSSERVER="${OPTARG}";;
         l) CONF_LIST_FILE="${OPTARG}";;
@@ -382,6 +411,7 @@ while getopts :vqphcl:t:d: arg; do
         v) VERBOSE=$((VERBOSE + 1));;
         q) VERBOSE=-1;;
         p) PLAIN=1 RED="" GREEN="" YELLOW="" CLEAR="" ;;
+        j) OUTPUT_FORMAT=json PLAIN=1 RED="" GREEN="" YELLOW="" CLEAR="" ;;
         t) CONF_USE_OF_CORES="${OPTARG}";;
         h) showHelp;;
         ?) error "Unknown option ${OPTARG}";;
@@ -531,10 +561,11 @@ info 1 "  - ${COUNT_DNSWL} DNS allowlists"
 info 1 "  - ${COUNT_URIBL} URI blocklists"
 
 # Iterate over all list entries
-export -f check info error resolve text progress
+touch "${COUNT_FILE}"
+export -f check info error resolve text progress expand_ipv6 json_entry
 export REGEX REGEX_LIST REGEX_IP REGEX_IP6 REGEX_DOMAIN
-export CLEAR YELLOW RED GREEN SPINNER
-export REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT COUNT_FILE
+export CLEAR YELLOW RED GREEN SPINNER OS
+export REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT COUNT_FILE JSON_FILE OUTPUT_FORMAT
 export CMD_DIG CMD_HOST CMD DNSSERVER CONF_DNS_DURATION CONF_DNS_TRIES
 parallel -j "${CONF_USE_OF_CORES}" 'check {#} {}' ::: ${BLOCKLISTS}
 
@@ -546,7 +577,17 @@ ALLOW=$(grep -c 'W' "${COUNT_FILE}" || true)
 
 
 # Print results
-if [[ "${VERBOSE}" -ge 0 ]]; then
+if [[ "${OUTPUT_FORMAT}" == "json" ]]; then
+    printf '{"target":"%s","target_type":"%s","ip":"%s",' "${TARGET}" "${TARGET_TYPE}" "${IP}"
+    printf '"summary":{"tested":%d,"passed":%d,"allowlisted":%d,"invalid":%d,"blocklisted":%d},' \
+        "${COUNT}" "${PASSED}" "${ALLOW}" "${INVALID}" "${FAILED}"
+    printf '"results":['
+    if [[ -s "${JSON_FILE}" ]]; then
+        # Join JSONL lines with commas
+        paste -sd',' "${JSON_FILE}"
+    fi
+    printf ']}\n'
+elif [[ "${VERBOSE}" -ge 0 ]]; then
     if [[ -z "${PLAIN}" ]]; then
         printf "\r                                                    \n"
     else
@@ -569,7 +610,7 @@ if [[ "${FAILED}" -gt 0 ]]; then
     if [[ "${VERBOSE}" -eq -1 ]]; then
         echo "${FAILED}"
     fi
-    exit 1
+    exit $(( FAILED > 125 ? 125 : FAILED ))
 fi
 
 # vim: tabstop=4: shiftwidth=4: expandtab:

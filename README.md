@@ -12,6 +12,8 @@ Features
 * Performs __PTR validation__ (only if domain is supplied, does not work for IP)
 * 3 verbose (-v) levels and a quiet (-q) mode
 * The result of the script is the number of services which blocklisted the domain, so it can be used for any kind of __automated scripts or cronjobs__
+* __JSON output__ mode (`-j`) for monitoring and automation integration
+* __Unreachable list detection__ via `-c` flag (warns if a list's TLD no longer resolves)
 * Informative and pleasant output
 * Concurrent execution
 
@@ -40,7 +42,8 @@ If an IP (v4 or v6) is supplied, the PTR check cannot be executed and will be sk
 -v          Verbose mode, can be used multiple times (up to -vvv)
 -q          Quiet mode with absolutely no output (useful for scripts)
 -p          Plain text output (no coloring, no interactive status)
--j          Number of parallel jobs (e.g. 4) or percentage of cores (e.g. 50%), default: 75%
+-j          JSON output (implies -p)
+-t          Number of parallel threads (e.g. 4) or percentage of cores (e.g. 50%), default: 75%
 -h          The help you are just reading
 </pre>
 
