@@ -7,7 +7,7 @@
 # =============================================================================
 #
 # title             : blcheck
-# description       : Test any domain against hundrets of block lists.
+# description       : Test any domain against hundreds of block lists.
 # author            : Intellex
 # contributors      : Darko Poljak
 # date              : 2020-10-08
@@ -24,11 +24,11 @@ set -o errtrace  # trace ERR through 'time command' and other functions
 set -o nounset   ## set -u : exit the script if you try to use an uninitialised variable
 set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
 
-function cleanup {
+function cleanup() {
 	rm -f "${COUNT_FILE}" "${COUNT_FILE}.lock"
 }
 
-function handleError {
+function handleError() {
 	cleanup
 	error "Command was interrupted."
 }
@@ -107,20 +107,20 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 # Macros {
 
     # Verbose printing
-    info() {
+    function info() {
         if [[ ${VERBOSE} -ge "$1" ]]; then
             echo "$2"
         fi
     }
 
     # Error handling
-    error() {
+    function error() {
         echo "ERROR: $1" >&2
         exit 2
     }
 
     # Show progress
-    progress() {
+    function progress() {
         local completed=$1
 
         # Bar
@@ -130,12 +130,12 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
             printf "\r ";
         fi
 
-        # BAR as printf arg so that backslash will be litteraly interpreted
+        # BAR as printf arg so that backslash will be literally interpreted
         printf "[ %s %3s%% ] checking... %4s / $2  \r" "${BAR}" $((${completed} * 100 / $2)) "${completed}";
     }
 
     # Resolve the IP
-    resolve() {
+    function resolve() {
         local type=${2:-a}
 
         # IP already?
@@ -160,7 +160,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     }
 
     # Result info for IP
-    text() {
+    function text() {
         # IP already?
         local IP=$(echo "$1" | grep "^${REGEX_IP}$")
         if [[ -n "${IP}" ]]; then
@@ -178,7 +178,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     }
 
     # Check domain/IP against a single list entry
-    check() {
+    function check() {
         local I=$1
         local BL=$2
 
@@ -213,7 +213,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         # Get the status
         local RESPONSE=$(resolve "${TEST}")
 
-        # output has to be threat safe
+        # output has to be thread-safe
         (
             if [[ "${OS}" == "linux" ]]; then
                 flock -x 9
@@ -305,7 +305,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     }
 
     # Load list from file
-    loadList() {
+    function loadList() {
 
         # Make sure the file is readable
         if [[ -z "$1" ]]; then
@@ -319,11 +319,11 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     }
 
     # Show help
-    showHelp() {
+    function showHelp() {
         cat <<HELP
 blcheck [options] <domain_or_IP>
 
-Supplied domain must be full qualified domain name.
+Supplied domain must be a fully qualified domain name.
 If the IP is supplied, the PTR check cannot be executed and will be skipped.
 
 -d dnshost  Use host as DNS server to make lookups
@@ -390,7 +390,7 @@ fi
 if [[ -z "${CMD}" ]]; then
     error "Either dig or host command is required."
 fi
-info 3 "Using ${CMD} to reslove DNS queries"
+info 3 "Using ${CMD} to resolve DNS queries"
 
 # Parse IP
 IP=$(resolve "${TARGET}")
@@ -461,7 +461,7 @@ for BL in ${CONF_LISTS}; do
 
             else
                 if [[ "${TARGET_TYPE}" == 'ip' && "${TYPE}" == 'URIBL' ]]; then
-                    info 0 "${GREEN}Notice: URIBL entry '${DOMAIN}' will be ignore, because ${TARGET} is an IP address${CLEAR}"
+                    info 0 "${GREEN}Notice: URIBL entry '${DOMAIN}' will be ignored, because ${TARGET} is an IP address${CLEAR}"
                 else
                     case "${TYPE}" in
                         "DNSBL") COUNT_DNSBL=$((COUNT_DNSBL + 1)) ;;
@@ -486,7 +486,7 @@ done
 
 # Make sure we have at least one list entry
 if [[ "${COUNT}" -eq 0 ]]; then
-    error "No list have been specified"
+    error "No lists have been specified"
 fi
 info 1 "Matching against ${COUNT} entries:"
 info 1 "  - ${COUNT_DNSBL} DNS blocklists"
