@@ -20,7 +20,7 @@ Requirements
 --------------------
 
 * Any Unix/Linux or macOS with BASH.
-* Either dig or host command available.
+* Either dig or host command is available.
 * GNU parallel command available.
 
 
@@ -40,13 +40,28 @@ If the IP is supplied, the PTR check cannot be executed and will be skipped.
 -v          Verbose mode, can be used multiple times (up to -vvv)
 -q          Quiet mode with absolutely no output (useful for scripts)
 -p          Plain text output (no coloring, no interactive status)
--t          Thread numbers (4) or percentage (75%) of cores to use
+-j          Number of parallel jobs (e.g. 4) or percentage of cores (e.g. 50%), default: 75%
 -h          The help you are just reading
 </pre>
 
 Result of the script is the number of blocklisted entries. So if the supplied
 IP is not blocklisted on any of the servers the return code is 0.
 ```
+
+
+Testing
+--------------------
+
+Unit tests live in `tests/blcheck_test.sh` and use [bashunit](https://bashunit.typeddevs.com/).
+
+Install bashunit, then run the tests from the repository root:
+
+```bash
+bashunit tests/blcheck_test.sh
+```
+
+The tests cover the core helper functions (`info`, `error`, `resolve`, `loadList`) and the
+provider list regex parser, without requiring a live DNS server.
 
 
 TODO
