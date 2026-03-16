@@ -16,6 +16,7 @@ function set_up() {
     COUNT=10
     COUNT_FILE="$(mktemp)"
     REGEX_IP='\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)'
+    REGEX_IP6='^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$'
     REGEX_DOMAIN='\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)\+[a-zA-Z]\{2,\}'
     REGEX_LIST='^[ \\t]*([^=#]+)(=(([^#])+))?(#(DNSBL|DNSWL|URIBL))?[ \\t]*$'
     CMD_DIG="$(command -v dig || true)"
@@ -189,4 +190,113 @@ function test_regex_list_matches_filter_and_type_combined() {
 function test_regex_list_does_not_match_unknown_type() {
     [[ ! "black.list.com#INVALID" =~ ${REGEX_LIST} ]]
     assert_successful_code
+}
+
+# ---------------------------------------------------------------------------
+# REGEX_IP6 — IPv6 address detection
+# ---------------------------------------------------------------------------
+
+function test_regex_ip6_matches_full_address() {
+    [[ "2001:0db8:0000:0000:0000:0000:0000:0001" =~ ${REGEX_IP6} ]]
+    assert_successful_code
+}
+
+function test_regex_ip6_matches_compressed_address() {
+    [[ "2001:db8::1" =~ ${REGEX_IP6} ]]
+    assert_successful_code
+}
+
+function test_regex_ip6_matches_loopback() {
+    [[ "::1" =~ ${REGEX_IP6} ]]
+    assert_successful_code
+}
+
+function test_regex_ip6_matches_all_zeros() {
+    [[ "::" =~ ${REGEX_IP6} ]]
+    assert_successful_code
+}
+
+function test_regex_ip6_does_not_match_ipv4() {
+    [[ ! "1.2.3.4" =~ ${REGEX_IP6} ]]
+    assert_successful_code
+}
+
+function test_regex_ip6_does_not_match_plain_string() {
+    [[ ! "not-an-ip" =~ ${REGEX_IP6} ]]
+    assert_successful_code
+}
+
+# ---------------------------------------------------------------------------
+# expand_ipv6()
+# ---------------------------------------------------------------------------
+
+function test_expand_ipv6_full_address() {
+    assert_equals "20010db8000000000000000000000001" \
+        "$(expand_ipv6 "2001:0db8:0000:0000:0000:0000:0000:0001")"
+}
+
+function test_expand_ipv6_compressed_middle() {
+    assert_equals "20010db8000000000000000000000001" \
+        "$(expand_ipv6 "2001:db8::1")"
+}
+
+function test_expand_ipv6_loopback() {
+    assert_equals "00000000000000000000000000000001" \
+        "$(expand_ipv6 "::1")"
+}
+
+function test_expand_ipv6_all_zeros() {
+    assert_equals "00000000000000000000000000000000" \
+        "$(expand_ipv6 "::")"
+}
+
+function test_expand_ipv6_trailing_compression() {
+    assert_equals "20010db8000000000000000000000000" \
+        "$(expand_ipv6 "2001:db8::")"
+}
+
+function test_expand_ipv6_uppercases_are_lowercased() {
+    assert_equals "20010db8000000000000000000000001" \
+        "$(expand_ipv6 "2001:DB8::1")"
+}
+
+# ---------------------------------------------------------------------------
+# resolve() — IPv6 passthrough (no DNS required)
+# ---------------------------------------------------------------------------
+
+function test_resolve_returns_compressed_ipv6_unchanged() {
+    assert_equals "2001:db8::1" "$(resolve "2001:db8::1")"
+}
+
+function test_resolve_returns_loopback_ipv6_unchanged() {
+    assert_equals "::1" "$(resolve "::1")"
+}
+
+function test_resolve_returns_full_ipv6_unchanged() {
+    assert_equals "2001:0db8:0000:0000:0000:0000:0000:0001" \
+        "$(resolve "2001:0db8:0000:0000:0000:0000:0000:0001")"
+}
+
+# ---------------------------------------------------------------------------
+# IPv6 reversal — nibble-reversed dot-separated format for DNSBL lookups
+# ---------------------------------------------------------------------------
+
+function test_ipv6_reversal_compressed_address() {
+    local result
+    result=$(expand_ipv6 "2001:db8::1" | rev | sed 's/./&./g; s/\.$//')
+    assert_equals "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2" "$result"
+}
+
+function test_ipv6_reversal_loopback() {
+    local result
+    result=$(expand_ipv6 "::1" | rev | sed 's/./&./g; s/\.$//')
+    assert_equals "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0" "$result"
+}
+
+function test_ipv6_reversal_produces_31_dots() {
+    local result
+    result=$(expand_ipv6 "2001:db8::1" | rev | sed 's/./&./g; s/\.$//')
+    local dot_count
+    dot_count=$(tr -cd '.' <<< "$result" | wc -c | tr -d ' ')
+    assert_equals "31" "$dot_count"
 }
