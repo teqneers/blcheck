@@ -15,10 +15,13 @@ function set_up() {
     CONF_DNS_DURATION=3
     COUNT=10
     COUNT_FILE="$(mktemp)"
-    REGEX_IP='\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)'
-    REGEX_IP6='^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$'
-    REGEX_DOMAIN='\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)\+[a-zA-Z]\{2,\}'
-    REGEX_LIST='^[ \\t]*([^=#]+)(=(([^#])+))?(#(DNSBL|DNSWL|URIBL))?[ \\t]*$'
+    # Source regex definitions directly from the script so tests stay in sync
+    local _regexfile
+    _regexfile="$(mktemp)"
+    grep -E '^\s+REGEX_[A-Z0-9_]+=' "${SCRIPT}" > "${_regexfile}"
+    # shellcheck source=/dev/null
+    source "${_regexfile}"
+    rm -f "${_regexfile}"
     CMD_DIG="$(command -v dig || true)"
     CMD_HOST="$(command -v host || true)"
     CMD="${CMD_DIG:-${CMD_HOST}}"
