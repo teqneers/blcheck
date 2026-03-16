@@ -9,9 +9,9 @@
 # title             : blcheck
 # description       : Test any domain against hundreds of block lists.
 # author            : Intellex
-# contributors      : Darko Poljak
-# date              : 2020-10-08
-# version           : 0.7.0
+# contributors      : Darko Poljak, Oliver Mueller, Andrej Walilko
+# date              : 2026-03-16
+# version           : 0.8.0
 # usage             : blcheck [options] <domain_or_ip>
 # reference         : http://multirbl.valli.org/list/
 # code style        : https://google.github.io/styleguide/shell.xml
@@ -67,6 +67,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
     # Common regular expressions
     REGEX_IP='\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)'
+    REGEX_IP6='^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$'
     REGEX_DOMAIN='\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)\+[a-zA-Z]\{2,\}'
     REGEX_LIST='^[ \\t]*([^=#]+)(=(([^#])+))?(#(DNSBL|DNSWL|URIBL))?[ \\t]*$'
 
@@ -97,12 +98,38 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     #SPINNER="◐◓◑◒"
 
     DNSSERVER=
+    DOMAIN=
     PLAIN=
     VERBOSE=0
 
 #~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ }
 
 # Macros {
+
+    # Expand an IPv6 address to 32 lowercase hex digits (no colons or separators),
+    # suitable for nibble-reversal used in DNSBL lookups.
+    function expand_ipv6() {
+        local addr
+        addr=$(tr '[:upper:]' '[:lower:]' <<< "$1")
+
+        # Expand :: notation by counting groups on each side and inserting zero groups
+        if [[ "${addr}" == *::* ]]; then
+            local left="${addr%%::*}"
+            local right="${addr##*::}"
+            local lgroups=0 rgroups=0
+            [[ -n "${left}" ]]  && lgroups=$(( $(tr -cd ':' <<< "${left}"  | wc -c) + 1 ))
+            [[ -n "${right}" ]] && rgroups=$(( $(tr -cd ':' <<< "${right}" | wc -c) + 1 ))
+            local fill
+            fill=$(printf '0:%.0s' $(seq 1 $(( 8 - lgroups - rgroups ))))
+            fill="${fill%:}"
+            addr="${left:+${left}:}${fill}${right:+:${right}}"
+        fi
+
+        # Pad each group to 4 hex digits and concatenate
+        tr ':' '\n' <<< "${addr}" | while IFS= read -r g; do
+            printf "%04x" "$((16#${g:-0}))"
+        done | tr -d '\n'
+    }
 
     # Verbose printing
     function info() {
@@ -136,10 +163,14 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     function resolve() {
         local type=${2:-a}
 
-        # IP already?
+        # IPv4 passthrough
         local IP=$(echo "$1" | grep "^${REGEX_IP}$")
         if [[ "${IP}" ]]; then
             echo "${IP}"
+
+        # IPv6 passthrough
+        elif [[ "$1" =~ ${REGEX_IP6} ]]; then
+            echo "$1"
 
         # Resolve domain
         else
@@ -322,7 +353,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 blcheck [options] <domain_or_IP>
 
 Supplied domain must be a fully qualified domain name.
-If the IP is supplied, the PTR check cannot be executed and will be skipped.
+If an IP (v4 or v6) is supplied, the PTR check cannot be executed and will be skipped.
 
 -d dnshost  Use host as DNS server to make lookups
 -l file     Load lists from file with one entry per line
@@ -394,6 +425,9 @@ info 3 "Using ${CMD} to resolve DNS queries"
 IP=$(resolve "${TARGET}")
 if [[ -z "${IP}" ]]; then
     error "No DNS record found for ${TARGET}"
+elif [[ "${IP}" =~ ${REGEX_IP6} ]]; then
+    info 3 "Using ${TARGET} for target (IPv6)"
+    TARGET_TYPE="ipv6"
 elif [[ "${IP}" != "${TARGET}" ]]; then
     DOMAIN=${TARGET}
     info 2 "Using ${TARGET} for target, resolved to ${IP}"
@@ -403,8 +437,13 @@ else
     TARGET_TYPE="ip"
 fi
 
-# Reverse the IP
-REVERSED=$(echo "${IP}" | sed -ne "s~^${REGEX_IP}$~\4.\3.\2.\1~p")
+# Reverse the IP for DNSBL lookups
+if [[ "${TARGET_TYPE}" == "ipv6" ]]; then
+    # Expand to 32 hex digits, reverse each nibble, dot-separate
+    REVERSED=$(expand_ipv6 "${IP}" | rev | sed 's/./&./g; s/\.$//')
+else
+    REVERSED=$(echo "${IP}" | sed -ne "s~^${REGEX_IP}$~\4.\3.\2.\1~p")
+fi
 info 3 "Using ${REVERSED} for reversed IP"
 
 # Get the PTR
@@ -458,7 +497,7 @@ for BL in ${CONF_LISTS}; do
                info 0 "${YELLOW}Warning: domain '${DOMAIN}' is not valid and will be ignored${CLEAR}"
 
             else
-                if [[ "${TARGET_TYPE}" == 'ip' && "${TYPE}" == 'URIBL' ]]; then
+                if [[ ( "${TARGET_TYPE}" == 'ip' || "${TARGET_TYPE}" == 'ipv6' ) && "${TYPE}" == 'URIBL' ]]; then
                     info 0 "${GREEN}Notice: URIBL entry '${DOMAIN}' will be ignored, because ${TARGET} is an IP address${CLEAR}"
                 else
                     case "${TYPE}" in
@@ -493,7 +532,7 @@ info 1 "  - ${COUNT_URIBL} URI blocklists"
 
 # Iterate over all list entries
 export -f check info error resolve text progress
-export REGEX REGEX_LIST REGEX_IP REGEX_DOMAIN
+export REGEX REGEX_LIST REGEX_IP REGEX_IP6 REGEX_DOMAIN
 export CLEAR YELLOW RED GREEN SPINNER
 export REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT COUNT_FILE
 export CMD_DIG CMD_HOST CMD DNSSERVER CONF_DNS_DURATION CONF_DNS_TRIES

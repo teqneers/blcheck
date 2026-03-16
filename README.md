@@ -8,7 +8,7 @@ Features
 --------------------
 
 * More than __250 block lists__ already included!
-* Automatic distinction between __domain or IP__
+* Automatic distinction between __domain, IPv4, or IPv6__
 * Performs __PTR validation__ (only if domain is supplied, does not work for IP)
 * 3 verbose (-v) levels and a quiet (-q) mode
 * The result of the script is the number of services which blocklisted the domain, so it can be used for any kind of __automated scripts or cronjobs__
@@ -31,7 +31,7 @@ Usage
 blcheck [options] <domain\_or\_IP>
 
 Supplied domain must be a fully qualified domain name.
-If the IP is supplied, the PTR check cannot be executed and will be skipped.
+If an IP (v4 or v6) is supplied, the PTR check cannot be executed and will be skipped.
 
 <pre>
 -d dnshost  Use host as DNS server to make lookups
@@ -68,7 +68,6 @@ TODO
 --------------------
 
 1. Handle domains with multiple DNS entries.
-2. Handle IPv6.
 
 
 License
