@@ -31,7 +31,6 @@ function cleanup {
 function handleError {
 	cleanup
 	error "Command was interrupted."
-	exit 99
 }
 trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
@@ -71,7 +70,6 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     # Common regular expressions
     REGEX_IP='\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)\.\([0-9]\{1,3\}\)'
     REGEX_DOMAIN='\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)\+[a-zA-Z]\{2,\}'
-    REGEX_TDL='\([a-zA-Z0-9]\+\(-[a-zA-Z0-9]\+\)*\.\)[a-zA-Z]\{2,\}$'
     REGEX_LIST='^[ \\t]*([^=#]+)(=(([^#])+))?(#(DNSBL|DNSWL|URIBL))?[ \\t]*$'
 
     # Colors
@@ -225,7 +223,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
             if [[ "${VERBOSE}" -ge 1 ]]; then
 
                 # Show percentage
-                local STATUS=$(( $(cat "${COUNT_FILE}" | wc -l) + 1 ))
+                local STATUS=$(( $(wc -l < "${COUNT_FILE}") + 1 ))
                 STATUS=$(printf " %3s" "$((${STATUS} * 100 / ${COUNT} ))")
                 STATUS="${STATUS}% "
 
@@ -300,7 +298,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
             fi
             if [[ "${VERBOSE}" -ge 0 ]]; then
                 if [[ -z "${PLAIN}" ]]; then
-                    progress "$(cat "${COUNT_FILE}" | wc -l)" "${COUNT}"
+                    progress "$(wc -l < "${COUNT_FILE}")" "${COUNT}"
                 fi
             fi
         ) 9>"${COUNT_FILE}.lock"
@@ -317,7 +315,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         fi
 
         # Ignore commented and empty lines
-        CONF_LISTS=$(cat "$1" | grep -vE "^(#|$)")
+        CONF_LISTS=$(grep -vE "^(#|$)" "$1")
     }
 
     # Show help
@@ -377,14 +375,14 @@ TARGET=$1
 shopt -s xpg_echo
 
 # Get the command we will use: dig or host
-CMD_DIG=$(which dig)
+CMD_DIG=$(command -v dig)
 if [[ "${CMD_DIG}" ]]; then
     if [[ -n "${DNSSERVER}" ]]; then
         DNSSERVER="@${DNSSERVER}"
     fi
     CMD=${CMD_DIG}
 else
-    CMD_HOST=$(which host)
+    CMD_HOST=$(command -v host)
     if [[ "${CMD_HOST}" ]]; then
         CMD=${CMD_HOST}
     fi
@@ -465,20 +463,20 @@ for BL in ${CONF_LISTS}; do
                 if [[ "${TARGET_TYPE}" == 'ip' && "${TYPE}" == 'URIBL' ]]; then
                     info 0 "${GREEN}Notice: URIBL entry '${DOMAIN}' will be ignore, because ${TARGET} is an IP address${CLEAR}"
                 else
-                case "${TYPE}" in
-                    "DNSBL") COUNT_DNSBL=$((COUNT_DNSBL + 1)) ;;
-                    "DNSWL") COUNT_DNSWL=$((COUNT_DNSWL + 1)) ;;
-                    "URIBL") COUNT_URIBL=$((COUNT_URIBL + 1)) ;;
-                esac
-                COUNT=$((COUNT + 1))
+                    case "${TYPE}" in
+                        "DNSBL") COUNT_DNSBL=$((COUNT_DNSBL + 1)) ;;
+                        "DNSWL") COUNT_DNSWL=$((COUNT_DNSWL + 1)) ;;
+                        "URIBL") COUNT_URIBL=$((COUNT_URIBL + 1)) ;;
+                    esac
+                    COUNT=$((COUNT + 1))
 
-                # It is a proper blocklist
-                if [[ "${BLOCKLISTS}" ]]; then
-                    BLOCKLISTS=$(echo "${BLOCKLISTS}\n${DOMAIN}=${FILTER}#${TYPE}")
-                else
-                    BLOCKLISTS="${DOMAIN}=${FILTER}#${TYPE}"
+                    # It is a proper blocklist
+                    if [[ "${BLOCKLISTS}" ]]; then
+                        BLOCKLISTS=$(echo "${BLOCKLISTS}\n${DOMAIN}=${FILTER}#${TYPE}")
+                    else
+                        BLOCKLISTS="${DOMAIN}=${FILTER}#${TYPE}"
+                    fi
                 fi
-            fi
             fi
         else
             info 0 "${YELLOW}Warning: list entry '${BL}' is not valid and will be ignored${CLEAR}"
@@ -497,14 +495,17 @@ info 1 "  - ${COUNT_URIBL} URI blocklists"
 
 # Iterate over all list entries
 export -f check info error resolve text progress
-export REGEX_LIST REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT YELLOW CLEAR RED GREEN SPINNER REGEX_IP REGEX_DOMAIN CMD_DIG DNSSERVER CONF_DNS_DURATION CONF_DNS_TRIES REGEX CMD_HOST CMD COUNT_FILE
+export REGEX REGEX_LIST REGEX_IP REGEX_DOMAIN
+export CLEAR YELLOW RED GREEN SPINNER
+export REVERSED TARGET VERIFY_BL VERBOSE PLAIN COUNT COUNT_FILE
+export CMD_DIG CMD_HOST CMD DNSSERVER CONF_DNS_DURATION CONF_DNS_TRIES
 parallel -j "${CONF_USE_OF_CORES}" 'check {#} {}' ::: ${BLOCKLISTS}
 
 # Initialize the counters
-INVALID=$(grep -o 'I' "${COUNT_FILE}" | wc -l)
-PASSED=$(grep -o 'P' "${COUNT_FILE}" | wc -l)
-FAILED=$(grep -o 'F' "${COUNT_FILE}" | wc -l)
-ALLOW=$(grep -o 'W' "${COUNT_FILE}" | wc -l)
+INVALID=$(grep -c 'I' "${COUNT_FILE}" || true)
+PASSED=$(grep -c 'P' "${COUNT_FILE}" || true)
+FAILED=$(grep -c 'F' "${COUNT_FILE}" || true)
+ALLOW=$(grep -c 'W' "${COUNT_FILE}" || true)
 
 
 # Print results
