@@ -7,7 +7,7 @@ Script will use dig if it is found. If dig is not found script will use host.
 Features
 --------------------
 
-* More than __250 block lists__ already included!
+* Nearly __300 block lists__ already included!
 * Automatic distinction between __domain, IPv4, or IPv6__
 * Performs __PTR validation__ (only if domain is supplied, does not work for IP)
 * 3 verbose (-v) levels and a quiet (-q) mode
@@ -30,12 +30,13 @@ Usage
 --------------------
 
 ```
-blcheck [options] <domain\_or\_IP>
+blcheck [options] <domain_or_IP>
+```
 
 Supplied domain must be a fully qualified domain name.
 If an IP (v4 or v6) is supplied, the PTR check cannot be executed and will be skipped.
 
-<pre>
+```
 -d dnshost  Use host as DNS server to make lookups
 -l file     Load lists from file with one entry per line
 -c          Warn if the top level domain of the list has expired
@@ -45,11 +46,10 @@ If an IP (v4 or v6) is supplied, the PTR check cannot be executed and will be sk
 -j          JSON output (implies -p)
 -t          Number of parallel threads (e.g. 4) or percentage of cores (e.g. 50%), default: 75%
 -h          The help you are just reading
-</pre>
+```
 
 Result of the script is the number of blocklisted entries. So if the supplied
 IP is not blocklisted on any of the servers the return code is 0.
-```
 
 
 Testing
