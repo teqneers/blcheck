@@ -39,7 +39,7 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
 # Config {
 
-    pushd $(dirname "$0") >/dev/null
+    pushd "$(dirname "$0")" >/dev/null
     SCRIPT_PATH=$(pwd -P)
     popd >/dev/null
 
@@ -154,7 +154,8 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
 
         # Bar
         local x=$((${completed} % ${#SPINNER} + 1))
-        local BAR=$(echo ${SPINNER} | awk "{ print substr(\$0, ${x}, 1) }")
+        local BAR
+        BAR=$(echo ${SPINNER} | awk "{ print substr(\$0, ${x}, 1) }")
         if [[ -z "${PLAIN}" ]]; then
             printf "\r ";
         fi
@@ -168,7 +169,8 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         local type=${2:-a}
 
         # IPv4 passthrough
-        local IP=$(echo "$1" | grep "^${REGEX_IP}$")
+        local IP
+        IP=$(echo "$1" | grep "^${REGEX_IP}$") || true
         if [[ "${IP}" ]]; then
             echo "${IP}"
 
@@ -195,7 +197,8 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
     # Result info for IP
     function text() {
         # IP already?
-        local IP=$(echo "$1" | grep "^${REGEX_IP}$")
+        local IP
+        IP=$(echo "$1" | grep "^${REGEX_IP}$") || true
         if [[ -n "${IP}" ]]; then
             echo "${IP}"
 
@@ -256,7 +259,8 @@ trap "handleError" SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM
         fi
 
         # Get the status
-        local RESPONSE=$(resolve "${TEST}")
+        local RESPONSE
+        RESPONSE=$(resolve "${TEST}")
 
         # output has to be thread-safe
         (

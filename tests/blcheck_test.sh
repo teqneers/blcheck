@@ -7,12 +7,19 @@ SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/blcheck"
 
 function set_up() {
     # Globals required by the sourced functions
+    # shellcheck disable=SC2034
     VERBOSE=0
+    # shellcheck disable=SC2034
     PLAIN=
+    # shellcheck disable=SC2034
     SPINNER="-\|/"
+    # shellcheck disable=SC2034
     RED="" GREEN="" YELLOW="" CLEAR=""
+    # shellcheck disable=SC2034
     CONF_DNS_TRIES=2
+    # shellcheck disable=SC2034
     CONF_DNS_DURATION=3
+    # shellcheck disable=SC2034
     COUNT=10
     COUNT_FILE="$(mktemp)"
     # Source regex definitions directly from the script so tests stay in sync
@@ -24,7 +31,9 @@ function set_up() {
     rm -f "${_regexfile}"
     CMD_DIG="$(command -v dig || true)"
     CMD_HOST="$(command -v host || true)"
+    # shellcheck disable=SC2034
     CMD="${CMD_DIG:-${CMD_HOST}}"
+    # shellcheck disable=SC2034
     DNSSERVER=""
 
     # Source only the Macros section (function definitions)
@@ -55,6 +64,7 @@ function test_info_prints_when_verbose_exceeds_required_level() {
 }
 
 function test_info_suppresses_message_when_verbose_is_below_required_level() {
+    # shellcheck disable=SC2034
     VERBOSE=0
     assert_empty "$(info 1 "hello")"
 }

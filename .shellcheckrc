@@ -1,0 +1,7 @@
+# ShellCheck configuration for blcheck
+shell=bash
+
+# SC2254: Quote expansions in case patterns to match literally rather than as a glob.
+# Intentional: case patterns match against CMD_DIG/CMD_HOST command paths.
+# To be fixed incrementally per "slowly migrate" policy.
+disable=SC2254
